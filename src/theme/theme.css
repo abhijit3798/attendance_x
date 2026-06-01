@@ -1,0 +1,93 @@
+/* Material 3 Green Scheme Custom Tokens */
+:root {
+  /* Light Color Scheme Palette */
+  --md-sys-color-primary-light: #10B981; /* Vibrant Mint Emerald */
+  --md-sys-color-on-primary-light: #FFFFFF;
+  --md-sys-color-primary-container-light: #D1FAE5; /* Mint green container */
+  --md-sys-color-on-primary-container-light: #064E3B; /* Dark forest green text */
+  --md-sys-color-secondary-light: #059669; /* Sage accent */
+  --md-sys-color-on-secondary-light: #FFFFFF;
+  --md-sys-color-secondary-container-light: #E6F4EA;
+  --md-sys-color-on-secondary-container-light: #1B5E20;
+  --md-sys-color-background-light: #F8FAFC; /* Slate Light Blue-Gray background */
+  --md-sys-color-on-background-light: #0F172A; /* Slate Dark text */
+  --md-sys-color-surface-light: #FFFFFF; /* Pure White Card background */
+  --md-sys-color-on-surface-light: #0F172A;
+  --md-sys-color-outline-light: #E2E8F0; /* Slate Light border outline */
+
+  /* Dark Color Scheme Palette */
+  --md-sys-color-primary-dark: #34D399; /* Pale Jade Emerald */
+  --md-sys-color-on-primary-dark: #003822;
+  --md-sys-color-primary-container-dark: #064E3B;
+  --md-sys-color-on-primary-container-dark: #D1FAE5;
+  --md-sys-color-secondary-dark: #6EE7B7;
+  --md-sys-color-on-secondary-dark: #003822;
+  --md-sys-color-secondary-container-dark: #047857;
+  --md-sys-color-on-secondary-container-dark: #E6F4EA;
+  --md-sys-color-background-dark: #0F172A; /* Slate Dark background */
+  --md-sys-color-on-background-dark: #FFFFFF; /* Pure White text */
+  --md-sys-color-surface-dark: #111827; /* Gray Dark Card background */
+  --md-sys-color-on-surface-dark: #FFFFFF;
+  --md-sys-color-outline-dark: #1F2937; /* Gray Dark border outline */
+
+  /* Global Accent Colors */
+  --color-success: #10B981;
+  --color-success-container: rgba(16, 185, 129, 0.12);
+  --color-danger: #F43F5E;
+  --color-danger-container: rgba(244, 63, 94, 0.12);
+  --color-warning: #F59E0B;
+  --color-warning-container: rgba(245, 158, 11, 0.12);
+
+  /* Animation and Transition Configs */
+  --m3-transition: all 0.3s cubic-bezier(0.2, 0, 0, 1);
+  --m3-border-radius: 24px;
+  --m3-border-radius-small: 12px;
+}
+
+/* Light / Dark Mode selector mappings */
+:root {
+  --color-primary: var(--md-sys-color-primary-light);
+  --color-on-primary: var(--md-sys-color-on-primary-light);
+  --color-primary-container: var(--md-sys-color-primary-container-light);
+  --color-on-primary-container: var(--md-sys-color-on-primary-container-light);
+  --color-secondary: var(--md-sys-color-secondary-light);
+  --color-on-secondary: var(--md-sys-color-on-secondary-light);
+  --color-secondary-container: var(--md-sys-color-secondary-container-light);
+  --color-on-secondary-container: var(--md-sys-color-on-secondary-container-light);
+  --color-background: var(--md-sys-color-background-light);
+  --color-on-background: var(--md-sys-color-on-background-light);
+  --color-surface: var(--md-sys-color-surface-light);
+  --color-on-surface: var(--md-sys-color-on-surface-light);
+  --color-outline: var(--md-sys-color-outline-light);
+  --text-secondary: #5C6F67; /* High contrast Sage Slate Gray for light mode */
+}
+
+.dark {
+  --color-primary: var(--md-sys-color-primary-dark);
+  --color-on-primary: var(--md-sys-color-on-primary-dark);
+  --color-primary-container: var(--md-sys-color-primary-container-dark);
+  --color-on-primary-container: var(--md-sys-color-on-primary-container-dark);
+  --color-secondary: var(--md-sys-color-secondary-dark);
+  --color-on-secondary: var(--md-sys-color-on-secondary-dark);
+  --color-secondary-container: var(--md-sys-color-secondary-container-dark);
+  --color-on-secondary-container: var(--md-sys-color-on-secondary-container-dark);
+  --color-background: var(--md-sys-color-background-dark);
+  --color-on-background: var(--md-sys-color-on-background-dark);
+  --color-surface: var(--md-sys-color-surface-dark);
+  --color-on-surface: var(--md-sys-color-on-surface-dark);
+  --color-outline: var(--md-sys-color-outline-dark);
+  --text-secondary: #A3B3AB; /* High contrast Pale Mint Gray for dark mode */
+}
+
+/* Accessibility Focus Ring Control */
+*:focus-visible {
+  outline: 3px solid var(--color-primary);
+  outline-offset: 3px;
+}
+
+/* Base resets mapped to M3 theme specs */
+body {
+  background-color: var(--color-background);
+  color: var(--color-on-background);
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
