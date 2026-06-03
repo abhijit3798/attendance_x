@@ -123,51 +123,6 @@ export function EditCompanyDialog({ open, onClose, company }) {
   );
 }
 
-export function AddLeaveDialog({ open, onClose }) {
-  const { logLeave, companies } = useContext(AppContext);
-  const [companyId, setCompanyId] = useState('');
-  const [date, setDate] = useState(() => new Date().toISOString().split('T')[0]);
-  const [reason, setReason] = useState('');
-
-  if (!open) return null;
-
-  const submit = () => {
-    if (!companyId) return;
-    logLeave(parseInt(companyId), date, reason);
-    setReason('');
-    onClose();
-  };
-
-  return (
-    <div className="modal-overlay">
-      <div className="modal-content" role="dialog" aria-modal="true" aria-label="Log Leave Form">
-        <div className="modal-header">
-          <h3>Log Leave Absence</h3>
-          <button className="modal-close" onClick={onClose} aria-label="Close modal">×</button>
-        </div>
-        <div className="form-group">
-          <label>Workplace / Company *</label>
-          <select className="form-control" value={companyId} onChange={e => setCompanyId(e.target.value)}>
-            <option value="">Select Workplace</option>
-            {companies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-          </select>
-        </div>
-        <div className="form-group">
-          <label>Date of Absence *</label>
-          <input type="date" className="form-control" value={date} onChange={e => setDate(e.target.value)} />
-        </div>
-        <div className="form-group">
-          <label>Reason / Notes</label>
-          <input type="text" className="form-control" placeholder="e.g. Medical Checkup" value={reason} onChange={e => setReason(e.target.value)} />
-        </div>
-        <button className="btn btn-primary" style={{ width: '100%', marginTop: '12px' }} onClick={submit}>
-          Log Leave
-        </button>
-      </div>
-    </div>
-  );
-}
-
 export function AttendanceDetailsDialog({ open, onClose, dateString, currentLog, onSave }) {
   const [status, setStatus] = useState('PRESENT');
   const [shift, setShift] = useState('GENERAL');

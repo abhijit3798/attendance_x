@@ -13,7 +13,7 @@ export default function About() {
     if (navigator.share) {
       navigator.share({
         title: 'AttendanceX',
-        text: 'Download AttendanceX to manage your attendance, shifts, leaves, and reports easily!',
+        text: 'Download AttendanceX to manage your attendance and reports easily!',
         url: window.location.origin
       }).catch(err => console.log('Share failed', err));
     } else {
@@ -42,7 +42,7 @@ export default function About() {
         </span>
 
         <p style={{ color: 'var(--text-secondary)', fontSize: '14px', margin: '24px auto', maxWidth: '360px', lineHeight: '1.6', fontWeight: '500' }}>
-          AttendanceX helps users manage attendance, shifts, leave and reports.
+          AttendanceX helps users manage attendance and reports.
         </p>
 
         {/* Specifications list */}
@@ -99,7 +99,7 @@ export default function About() {
               </p>
               <strong>1. Data Minimization</strong>
               <p>
-                All attendance, schedules, leaves, and custom notebooks logs remain completely on your local device. No telemetry data is captured or shared.
+                All attendance, schedules, and logs remain completely on your local device. No telemetry data is captured or shared.
               </p>
               <strong>2. Data Encryption</strong>
               <p>

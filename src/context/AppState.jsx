@@ -23,13 +23,7 @@ export const AppProvider = ({ children }) => {
   });
 
   // 1d. Shifts State
-  const [shifts, setShifts] = useState(() => {
-    const local = localStorage.getItem('ax_shifts');
-    return local ? JSON.parse(local) : [
-      { id: 1, name: 'Day Shift', startTime: '09:00', endTime: '17:00', targetHours: 40.0, color: '#10B981' },
-      { id: 2, name: 'Night Shift', startTime: '22:00', endTime: '06:00', targetHours: 35.0, color: '#059669' }
-    ];
-  });
+  const shifts = [];
 
   // 1e. Projects State
   const [projects, setProjects] = useState(() => {
@@ -115,20 +109,10 @@ export const AppProvider = ({ children }) => {
   const [undoStack, setUndoStack] = useState([]);
 
   // 5. Leave Registry database
-  const [leaves, setLeaves] = useState(() => {
-    const local = localStorage.getItem('ax_leaves');
-    return local ? JSON.parse(local) : [
-      { id: 1, companyId: 1, date: '2026-05-10', reason: 'Medical Leave', status: 'APPROVED' }
-    ];
-  });
+  const [leaves, setLeaves] = useState([]);
 
   // 6. Notes Database
-  const [notes, setNotes] = useState(() => {
-    const local = localStorage.getItem('ax_notes');
-    return local ? JSON.parse(local) : [
-      { id: 1, title: 'Exam Review Schedule', content: 'Study sections 4.1 to 4.5', timestamp: Date.now() }
-    ];
-  });
+  const notes = [];
 
   // 7. Holidays Database
   const [holidays, setHolidays] = useState(() => {
@@ -164,13 +148,7 @@ export const AppProvider = ({ children }) => {
     localStorage.setItem('ax_calendar_logs', JSON.stringify(calendarLogs));
   }, [calendarLogs]);
 
-  useEffect(() => {
-    localStorage.setItem('ax_leaves', JSON.stringify(leaves));
-  }, [leaves]);
 
-  useEffect(() => {
-    localStorage.setItem('ax_notes', JSON.stringify(notes));
-  }, [notes]);
 
   useEffect(() => {
     localStorage.setItem('ax_holidays', JSON.stringify(holidays));
@@ -192,9 +170,7 @@ export const AppProvider = ({ children }) => {
     localStorage.setItem('ax_subjects', JSON.stringify(subjects));
   }, [subjects]);
 
-  useEffect(() => {
-    localStorage.setItem('ax_shifts', JSON.stringify(shifts));
-  }, [shifts]);
+
 
   useEffect(() => {
     localStorage.setItem('ax_projects', JSON.stringify(projects));
@@ -236,7 +212,25 @@ export const AppProvider = ({ children }) => {
     localStorage.setItem('ax_biometric_enabled', JSON.stringify(biometricEnabled));
   }, [biometricEnabled]);
 
-  const [activeCompanyId, setActiveCompanyId] = useState(null);
+  const [activeCompanyId, setActiveCompanyIdInternal] = useState(null);
+  const [lastCompanyId, setLastCompanyId] = useState(() => {
+    const local = localStorage.getItem('ax_last_company_id');
+    if (local) return parseInt(local);
+    const localComps = localStorage.getItem('ax_companies');
+    if (localComps) {
+      const parsed = JSON.parse(localComps);
+      if (parsed && parsed.length > 0) return parsed[0].id;
+    }
+    return 1;
+  });
+
+  const setActiveCompanyId = (id) => {
+    setActiveCompanyIdInternal(id);
+    if (id !== null) {
+      setLastCompanyId(id);
+      localStorage.setItem('ax_last_company_id', id.toString());
+    }
+  };
 
   // Persistent Theme Mode Applier (Light/Dark/System)
   useEffect(() => {
@@ -401,29 +395,7 @@ export const AppProvider = ({ children }) => {
     triggerBanner(`Cleared log entry for ${dateString}.`);
   };
 
-  // 3. Leave CRUD
-  const logLeave = (companyId, date, reason) => {
-    const newL = { id: Date.now(), companyId, date, reason, status: 'APPROVED' };
-    setLeaves([newL, ...leaves]);
-    triggerBanner('Leave absence logged.');
-  };
 
-  const deleteLeave = (id) => {
-    setLeaves(leaves.filter(l => l.id !== id));
-    triggerBanner('Removed leave record.');
-  };
-
-  // 4. Notes CRUD
-  const addNote = (title, content) => {
-    const newNote = { id: Date.now(), title, content, timestamp: Date.now() };
-    setNotes([newNote, ...notes]);
-    triggerBanner(`Note created: ${title}`);
-  };
-
-  const deleteNote = (id) => {
-    setNotes(notes.filter(n => n.id !== id));
-    triggerBanner('Removed note.');
-  };
 
   // 5. Holiday CRUD
   const addHoliday = (name, date) => {
@@ -443,10 +415,7 @@ export const AppProvider = ({ children }) => {
     triggerBanner(`Deleted course: ${name}`);
   };
 
-  const deleteShift = (id, name) => {
-    setShifts(shifts.filter(s => s.id !== id));
-    triggerBanner(`Deleted shift: ${name}`);
-  };
+
 
   const deleteProject = (id, name) => {
     setProjects(projects.filter(p => p.id !== id));
@@ -611,12 +580,10 @@ export const AppProvider = ({ children }) => {
         setCalendarLogs(data.calendarLogs);
         if (data.companies) setCompanies(data.companies);
         if (data.leaves) setLeaves(data.leaves);
-        if (data.notes) setNotes(data.notes);
         if (data.holidays) setHolidays(data.holidays);
         if (data.userName) setUserName(data.userName);
         if (data.role) setRole(data.role);
         if (data.subjects) setSubjects(data.subjects);
-        if (data.shifts) setShifts(data.shifts);
         if (data.projects) setProjects(data.projects);
         if (data.records) setRecords(data.records);
         
@@ -649,10 +616,11 @@ export const AppProvider = ({ children }) => {
       userName, setUserName,
       drawerOpen, setDrawerOpen,
       activeCompanyId, setActiveCompanyId,
+      lastCompanyId,
       companies, addCompany, editCompany, deleteCompany, toggleArchiveCompany,
       calendarLogs, logAttendanceForDate, removeAttendanceForDate, bulkUpdateDates,
-      leaves, logLeave, deleteLeave,
-      notes, addNote, deleteNote,
+      leaves, setLeaves, logLeave: () => {}, deleteLeave: () => {},
+      notes: [], addNote: () => {}, deleteNote: () => {},
       holidays, addHoliday, deleteHoliday,
       streak: calculateStreak(),
       undoBannerActive, undoLastChange,
@@ -662,7 +630,7 @@ export const AppProvider = ({ children }) => {
       banner, triggerBanner,
       role, setRole,
       subjects, setSubjects, deleteCourse,
-      shifts, setShifts, deleteShift,
+      shifts: [], setShifts: () => {}, deleteShift: () => {},
       projects, setProjects, deleteProject,
       records, setRecords, logAttendance, deleteRecord, startRosterSession,
       themeMode, setThemeMode,

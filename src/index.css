@@ -1574,3 +1574,53 @@ body {
     width: 100% !important; /* wrap fields to 100% width on extremely small devices */
   }
 }
+
+/* Calendar Header Custom Dropdowns Override */
+.calendar-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-bottom: 20px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.calendar-dropdowns-container {
+  display: flex;
+  gap: 8px;
+  flex: 1;
+  max-width: 218px; /* 120 (month max) + 90 (year max) + 8 (gap) */
+  justify-content: center;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.calendar-dropdowns-container .custom-dropdown-container {
+  flex: 1;
+  min-width: 0 !important;
+}
+
+.calendar-dropdowns-container .custom-dropdown-container:first-of-type {
+  max-width: 120px;
+}
+
+.calendar-dropdowns-container .custom-dropdown-container:last-of-type {
+  max-width: 90px;
+}
+
+.calendar-dropdowns-container .custom-dropdown-trigger {
+  height: 40px !important;
+  border-radius: 10px !important;
+  padding: 0 20px 0 6px !important; /* small padding */
+  font-size: 13px !important;
+}
+
+.calendar-dropdowns-container .custom-dropdown-arrow {
+  right: 6px !important;
+}
+
+.calendar-dropdowns-container .custom-dropdown-option {
+  padding: 8px 10px !important;
+  font-size: 13px !important;
+}

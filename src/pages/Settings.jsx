@@ -47,7 +47,7 @@ export default function Settings() {
   };
 
   const factoryReset = () => {
-    if (window.confirm('WARNING: This will permanently delete ALL workplaces, logs, leaves, and notes. This action cannot be undone. Proceed?')) {
+    if (window.confirm('WARNING: This will permanently delete ALL workplaces, logs, and settings. This action cannot be undone. Proceed?')) {
       localStorage.clear();
       triggerBanner('Database cleared successfully! Reloading...');
       setTimeout(() => window.location.reload(), 1000);
