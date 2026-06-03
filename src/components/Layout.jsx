@@ -1,8 +1,18 @@
 import React, { useContext, useState } from 'react';
 import { AppContext } from '../context/AppState';
+import { EditCompanyDialog } from './Dialogs';
 
 // Inline SVGs for lightweight design and complete offline capability
 const Icons = {
+  Back: () => (
+    <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+  ),
+  Edit: () => (
+    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 1 1 3 3L12 15l-4 1 1-4z"/></svg>
+  ),
+  Delete: () => (
+    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" color="var(--color-danger)"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+  ),
   Menu: () => (
     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
   ),
@@ -57,8 +67,14 @@ export default function Layout({ children, activeScreen, setActiveScreen }) {
     drawerOpen = false, 
     setDrawerOpen = () => {},
     themeMode = 'system',
-    setThemeMode = () => {}
+    setThemeMode = () => {},
+    activeCompanyId = null,
+    setActiveCompanyId = () => {},
+    companies = [],
+    deleteCompany = () => {}
   } = context;
+
+  const [showEditModal, setShowEditModal] = useState(false);
 
   const toggleTheme = () => {
     if (themeMode === 'dark') {
@@ -79,9 +95,6 @@ export default function Layout({ children, activeScreen, setActiveScreen }) {
     quick: 'Quick Attendance',
     reports: 'Attendance Reports',
     analytics: 'Analytics',
-    shifts: 'Shift Manager',
-    leaves: 'Leave Manager',
-    notes: 'Personal Notes',
     backup: 'Backup & Restore',
     settings: 'Settings',
     about: 'About App'
@@ -111,6 +124,7 @@ export default function Layout({ children, activeScreen, setActiveScreen }) {
 
   const navigateTo = (screenId) => {
     setActiveScreen(screenId);
+    setActiveCompanyId(null);
     setDrawerOpen(false); // Close collapsible drawer on mobile selection
   };
 
@@ -164,15 +178,6 @@ export default function Layout({ children, activeScreen, setActiveScreen }) {
           <button className={`drawer-item ${activeScreen === 'analytics' ? 'active' : ''}`} onClick={() => navigateTo('analytics')}>
             <Icons.Analytics /> Analytics
           </button>
-          <button className={`drawer-item ${activeScreen === 'shifts' ? 'active' : ''}`} onClick={() => navigateTo('shifts')}>
-            <Icons.Shifts /> Shifts
-          </button>
-          <button className={`drawer-item ${activeScreen === 'leaves' ? 'active' : ''}`} onClick={() => navigateTo('leaves')}>
-            <Icons.Leaves /> Leaves
-          </button>
-          <button className={`drawer-item ${activeScreen === 'notes' ? 'active' : ''}`} onClick={() => navigateTo('notes')}>
-            <Icons.Notes /> Notes
-          </button>
           <button className={`drawer-item ${activeScreen === 'backup' ? 'active' : ''}`} onClick={() => navigateTo('backup')}>
             <Icons.Backup /> Backup
           </button>
@@ -188,35 +193,83 @@ export default function Layout({ children, activeScreen, setActiveScreen }) {
       {/* Content wrapper taking up offset margins */}
       <div className="main-content">
         {/* Sticky App Header Bar */}
-        <header className="top-bar">
-          <div className="header-title-group" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            {/* Collapsible Menu Drawer button for mobile viewports */}
-            <button 
-              className="header-action-btn"
-              style={{ display: 'flex' }}
-              onClick={() => setDrawerOpen(true)}
-              aria-label="Toggle Navigation Drawer Menu"
-            >
-              <Icons.Menu />
-            </button>
-            <h2>{currentTitle}</h2>
-          </div>
+        {activeCompanyId && activeScreen === 'dashboard' ? (
+          <header className="top-bar" style={{ display: 'flex', alignItems: 'center', height: '56px', padding: '0 16px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', width: '100%', justifyContent: 'space-between' }}>
+              <button 
+                className="wp-calendar-back-btn" 
+                onClick={() => setActiveCompanyId(null)}
+                aria-label="Go back to Dashboard"
+                style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', padding: '8px', borderRadius: '50%' }}
+              >
+                <Icons.Back />
+              </button>
+              <h2 className="wp-calendar-title" style={{ flexGrow: 1, marginLeft: '12px', fontSize: '18px', fontWeight: '700', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', color: 'var(--text-primary)' }}>
+                {companies.find(c => c.id === activeCompanyId)?.name}
+              </h2>
+              <div style={{ display: 'flex', gap: '4px' }}>
+                <button 
+                  className="wp-calendar-action-btn" 
+                  onClick={() => setShowEditModal(true)} 
+                  aria-label="Edit workplace details"
+                  style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-secondary)', padding: '8px', borderRadius: '50%', display: 'flex', alignItems: 'center' }}
+                >
+                  <Icons.Edit />
+                </button>
+                <button 
+                  className="wp-calendar-action-btn" 
+                  onClick={() => {
+                    const comp = companies.find(c => c.id === activeCompanyId);
+                    if (comp && window.confirm(`Are you sure you want to delete ${comp.name}?`)) {
+                      deleteCompany(comp.id, comp.name);
+                      setActiveCompanyId(null);
+                    }
+                  }} 
+                  aria-label="Delete workplace"
+                  style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--color-danger)', padding: '8px', borderRadius: '50%', display: 'flex', alignItems: 'center' }}
+                >
+                  <Icons.Delete />
+                </button>
+              </div>
+            </div>
+            
+            <EditCompanyDialog
+              open={showEditModal}
+              onClose={() => setShowEditModal(false)}
+              company={companies.find(c => c.id === activeCompanyId)}
+            />
+          </header>
+        ) : (
+          <header className="top-bar">
+            <div className="header-title-group" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              {/* Collapsible Menu Drawer button for mobile viewports */}
+              <button 
+                className="header-action-btn"
+                style={{ display: 'flex' }}
+                onClick={() => setDrawerOpen(true)}
+                aria-label="Toggle Navigation Drawer Menu"
+              >
+                <Icons.Menu />
+              </button>
+              <h2>{currentTitle}</h2>
+            </div>
 
-          <div className="header-actions">
-            <button className="header-action-btn" aria-label="Toggle notifications"><Icons.Bell /></button>
-            <button 
-              className="header-action-btn" 
-              onClick={toggleTheme}
-              aria-label="Switch Theme Dark / Light mode"
-            >
-              {themeMode === 'dark' || (themeMode === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches) ? (
-                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
-              ) : (
-                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
-              )}
-            </button>
-          </div>
-        </header>
+            <div className="header-actions">
+              <button className="header-action-btn" aria-label="Toggle notifications"><Icons.Bell /></button>
+              <button 
+                className="header-action-btn" 
+                onClick={toggleTheme}
+                aria-label="Switch Theme Dark / Light mode"
+              >
+                {themeMode === 'dark' || (themeMode === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches) ? (
+                  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+                ) : (
+                  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+                )}
+              </button>
+            </div>
+          </header>
+        )}
 
         {/* Presentation panels mount point */}
         <main style={{ flex: 1 }}>
@@ -225,19 +278,19 @@ export default function Layout({ children, activeScreen, setActiveScreen }) {
 
         {/* Floating Bottom Nav bar for quick mobile overlays */}
         <nav className="bottom-nav" role="navigation" aria-label="Bottom Navigation Bar Quick Tabs">
-          <button className={`nav-item ${activeScreen === 'dashboard' ? 'active' : ''}`} onClick={() => setActiveScreen('dashboard')}>
+          <button className={`nav-item ${activeScreen === 'dashboard' ? 'active' : ''}`} onClick={() => { setActiveScreen('dashboard'); setActiveCompanyId(null); }}>
             <Icons.Dashboard />
             <span>Dashboard</span>
           </button>
-          <button className={`nav-item ${activeScreen === 'calendar' ? 'active' : ''}`} onClick={() => setActiveScreen('calendar')}>
+          <button className={`nav-item ${activeScreen === 'calendar' ? 'active' : ''}`} onClick={() => { setActiveScreen('calendar'); setActiveCompanyId(null); }}>
             <Icons.Calendar />
             <span>Calendar</span>
           </button>
-          <button className={`nav-item ${activeScreen === 'quick' ? 'active' : ''}`} onClick={() => setActiveScreen('quick')}>
+          <button className={`nav-item ${activeScreen === 'quick' ? 'active' : ''}`} onClick={() => { setActiveScreen('quick'); setActiveCompanyId(null); }}>
             <Icons.Fast />
             <span>Quick Mark</span>
           </button>
-          <button className={`nav-item ${activeScreen === 'shifts' ? 'active' : ''}`} onClick={() => setActiveScreen('shifts')}>
+          <button className={`nav-item ${activeScreen === 'shifts' ? 'active' : ''}`} onClick={() => { setActiveScreen('shifts'); setActiveCompanyId(null); }}>
             <Icons.Shifts />
             <span>Shifts</span>
           </button>

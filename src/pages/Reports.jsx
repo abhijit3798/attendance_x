@@ -1,285 +1,282 @@
-import { useContext, useState } from 'react';
+import React, { useContext, useState } from 'react';
 import { AppContext } from '../context/AppState';
-import SwipeableRow from '../components/SwipeableRow';
+import CustomDropdown from '../components/CustomDropdown';
 
 export default function Reports() {
-  const { records, deleteRecord, companies, triggerBanner } = useContext(AppContext);
+  const context = useContext(AppContext) || {};
+  const {
+    calendarLogs = {},
+    triggerBanner = () => {},
+    companies = [],
+    records = [],
+    leaves = []
+  } = context;
 
-  // Search & filter states
-  const [searchQuery, setSearchQuery] = useState('');
-  const [showAdvanced, setShowAdvanced] = useState(false);
-  
-  // Tag filter states (can choose multiple!)
-  const [selectedStatuses, setSelectedStatuses] = useState([]);
-  const [selectedShifts, setSelectedShifts] = useState([]);
-  
-  // Date range state
-  const [startDateStr, setStartDateStr] = useState('');
-  const [endDateStr, setEndDateStr] = useState('');
+  const today = new Date();
+  const currentYear = today.getFullYear();
+  const currentMonth = today.getMonth(); // 0-11
 
-  // Exclude helper "SESSION" entries to show clean tracking feeds
-  const displayRecs = records.filter(r => r.status !== 'SESSION');
+  const [selectedMonth, setSelectedMonth] = useState(currentMonth);
+  const [selectedYear, setSelectedYear] = useState(currentYear);
 
-  // Toggle filter arrays
-  const toggleStatusFilter = (status) => {
-    if (selectedStatuses.includes(status)) {
-      setSelectedStatuses(selectedStatuses.filter(s => s !== status));
-    } else {
-      setSelectedStatuses([...selectedStatuses, status]);
-    }
+  // Filter out archived companies
+  const activeCompanies = (companies || []).filter(c => c && !c.isArchived);
+
+  // Month names
+  const monthNames = [
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December'
+  ];
+
+  // Helper date conversions
+  const getRecordDateString = (timestamp) => {
+    if (!timestamp) return '';
+    const d = new Date(timestamp);
+    if (isNaN(d.getTime())) return '';
+    const y = d.getFullYear();
+    const mm = (d.getMonth() + 1).toString().padStart(2, '0');
+    const dd = d.getDate().toString().padStart(2, '0');
+    return `${y}-${mm}-${dd}`;
   };
 
-  const toggleShiftFilter = (shift) => {
-    if (selectedShifts.includes(shift)) {
-      setSelectedShifts(selectedShifts.filter(s => s !== shift));
-    } else {
-      setSelectedShifts([...selectedShifts, shift]);
-    }
-  };
+  // Generate Year picker range (5 years back to current year)
+  const years = [];
+  for (let y = currentYear - 5; y <= currentYear; y++) {
+    years.push(y);
+  }
 
-  const resetAllFilters = () => {
-    setSearchQuery('');
-    setSelectedStatuses([]);
-    setSelectedShifts([]);
-    setStartDateStr('');
-    setEndDateStr('');
-    triggerBanner('Cleared all search filters.');
-  };
-
-  // ----------------------------------------------------
-  // Optimized Fast Filter Engine
-  // ----------------------------------------------------
-  const getFilteredLogs = () => {
-    return displayRecs.filter(rec => {
-      const comp = companies.find(c => c.id === rec.companyId);
-      const companyName = comp?.name || 'Company';
-      const logNotes = rec.notes || '';
-      
-      const date = new Date(rec.timestamp);
-      const formattedDate = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-      
-      // 1. Combined Fuzzy Text Search
-      if (searchQuery.trim()) {
-        const query = searchQuery.toLowerCase();
-        const matchesName = companyName.toLowerCase().includes(query);
-        const matchesNotes = logNotes.toLowerCase().includes(query);
-        const matchesDate = formattedDate.toLowerCase().includes(query);
-        
-        if (!matchesName && !matchesNotes && !matchesDate) return false;
+  // Calculate statistics for a given month prefix (YYYY-MM)
+  const getStatsForMonth = (monthStr) => {
+    let present = 0;
+    let absent = 0;
+    let leave = 0;
+    
+    Object.keys(calendarLogs || {}).forEach(date => {
+      if (date && date.startsWith(monthStr)) {
+        const log = calendarLogs[date];
+        if (log) {
+          if (log.status === 'PRESENT' || log.status === 'OVERTIME') present++;
+          else if (log.status === 'ABSENT') absent++;
+          else if (log.status === 'HALFDAY') {
+            present += 0.5;
+            absent += 0.5;
+          } else if (log.status === 'LEAVE') leave++;
+        }
       }
-
-      // 2. Status Chips Selection (Match any if selected)
-      if (selectedStatuses.length > 0) {
-        if (!selectedStatuses.includes(rec.status)) return false;
-      }
-
-      // 3. Shift Chips Selection
-      if (selectedShifts.length > 0) {
-        const shiftVal = rec.shift || 'GENERAL';
-        if (!selectedShifts.includes(shiftVal)) return false;
-      }
-
-      // 4. Date Range Filters
-      const dateVal = new Date(rec.timestamp);
-      dateVal.setHours(0, 0, 0, 0);
-
-      if (startDateStr) {
-        const start = new Date(startDateStr);
-        start.setHours(0, 0, 0, 0);
-        if (dateVal < start) return false;
-      }
-
-      if (endDateStr) {
-        const end = new Date(endDateStr);
-        end.setHours(23, 59, 59, 999);
-        if (dateVal > end) return false;
-      }
-
-      return true;
     });
+
+    const total = present + absent;
+    const percentage = total > 0 ? (present / total) * 100 : 100.0;
+    return { present, absent, leave, percentage, total };
   };
 
-  const filteredLogs = getFilteredLogs();
+  // Workplace stats calculated specifically inside the selected month/year
+  const getCompanyStatsForSelectedMonth = (companyId, monthPrefix) => {
+    const compRecs = (records || []).filter(r => r && r.companyId === companyId && r.timestamp && getRecordDateString(r.timestamp).startsWith(monthPrefix));
+    const compLeaves = (leaves || []).filter(l => l && l.companyId === companyId && l.date && l.date.startsWith(monthPrefix) && l.status === 'APPROVED');
+
+    let present = 0;
+    let absent = 0;
+
+    compRecs.forEach(r => {
+      if (r.status === 'PRESENT' || r.status === 'OVERTIME') {
+        present += 1;
+      } else if (r.status === 'ABSENT') {
+        absent += 1;
+      } else if (r.status === 'HALFDAY') {
+        present += 0.5;
+        absent += 0.5;
+      }
+    });
+
+    const total = present + absent;
+    const percentage = total > 0 ? (present / total) * 100 : 100.0;
+
+    return {
+      present,
+      absent,
+      leaves: compLeaves.length,
+      percentage
+    };
+  };
+
+  const getShortMonthName = (monthIdx) => {
+    return monthNames[monthIdx].slice(0, 3);
+  };
+
+  const shortMonth = getShortMonthName(selectedMonth);
+  const fileNameCsv = `Attendance_Report_${shortMonth}_${selectedYear}.csv`;
+  const fileNamePdf = `Attendance_Report_${shortMonth}_${selectedYear}.pdf`;
+
+  const handleYearChange = (year) => {
+    setSelectedYear(year);
+    if (year === currentYear && selectedMonth > currentMonth) {
+      setSelectedMonth(currentMonth);
+    }
+  };
+
+  const exportCSV = () => {
+    const monthPrefix = `${selectedYear}-${(selectedMonth + 1).toString().padStart(2, '0')}`;
+    const stats = getStatsForMonth(monthPrefix);
+
+    let csv = 'data:text/csv;charset=utf-8,';
+    csv += `Report Month,${monthNames[selectedMonth]} ${selectedYear}\r\n`;
+    csv += `Overall Attendance Rate,${stats.percentage.toFixed(1)}%\r\n`;
+    csv += `Total Present,${stats.present}\r\n`;
+    csv += `Total Absent,${stats.absent}\r\n`;
+    csv += `Total Leaves,${stats.leave}\r\n\r\n`;
+    
+    csv += 'Workplace Summary\r\n';
+    csv += 'Workplace Name,Attendance %,Present Count,Leave Count\r\n';
+    activeCompanies.forEach(c => {
+      const s = getCompanyStatsForSelectedMonth(c.id, monthPrefix);
+      csv += `${c.name},${s.percentage.toFixed(0)}%,${s.present},${s.leaves}\r\n`;
+    });
+    csv += '\r\n';
+
+    const monthLogs = Object.keys(calendarLogs || {}).filter(date => date && date.startsWith(monthPrefix));
+    csv += 'Daily Attendance Log\r\n';
+    csv += 'Date,Status,Shift,Notes\r\n';
+    monthLogs.forEach(date => {
+      const log = calendarLogs[date];
+      if (log) {
+        csv += `${date},${log.status},${log.shift || 'GENERAL'},"${log.notes || ''}"\r\n`;
+      }
+    });
+
+    const encodedUri = encodeURI(csv);
+    const link = document.createElement('a');
+    link.href = encodedUri;
+    link.download = fileNameCsv;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    triggerBanner('CSV Downloaded!');
+  };
+
+  const exportPDF = () => {
+    const monthName = monthNames[selectedMonth];
+    const monthPrefix = `${selectedYear}-${(selectedMonth + 1).toString().padStart(2, '0')}`;
+    const stats = getStatsForMonth(monthPrefix);
+    
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) {
+      triggerBanner('Pop-up blocked! Allow pop-ups to print PDF.');
+      return;
+    }
+
+    const summaryRowsHtml = activeCompanies.map(c => {
+      const s = getCompanyStatsForSelectedMonth(c.id, monthPrefix);
+      return `
+        <tr>
+          <td style="border: 1px solid #ddd; padding: 8px;">${c.name}</td>
+          <td style="border: 1px solid #ddd; padding: 8px; text-align: right;">${s.percentage.toFixed(0)}%</td>
+          <td style="border: 1px solid #ddd; padding: 8px; text-align: right;">${s.present}</td>
+          <td style="border: 1px solid #ddd; padding: 8px; text-align: right;">${s.leaves}</td>
+        </tr>
+      `;
+    }).join('');
+
+    printWindow.document.write(`
+      <html>
+        <head>
+          <title>${fileNamePdf}</title>
+          <style>
+            body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; padding: 30px; color: #1e293b; line-height: 1.5; }
+            h1 { color: #047857; margin-bottom: 5px; font-size: 26px; }
+            h2 { color: #0f172a; margin-top: 30px; font-size: 18px; border-bottom: 2px solid #e2e8f0; padding-bottom: 8px; }
+            .meta-table, .summary-table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+            .meta-table td { padding: 10px; border: 1px solid #e2e8f0; font-size: 14px; }
+            .meta-table td strong { color: #475569; }
+            .summary-table th { background-color: #f8fafc; border: 1px solid #e2e8f0; padding: 10px; text-align: left; font-size: 12px; font-weight: 700; color: #475569; text-transform: uppercase; }
+            .summary-table td { border: 1px solid #e2e8f0; padding: 10px; font-size: 14px; }
+          </style>
+        </head>
+        <body>
+          <h1>Attendance Summary Report</h1>
+          <p style="color: #64748b; font-size: 13px; margin: 0 0 20px 0;">Generated on ${new Date().toLocaleDateString()}</p>
+          
+          <table class="meta-table">
+            <tr>
+              <td><strong>Report Month</strong></td>
+              <td>${monthName} ${selectedYear}</td>
+              <td><strong>Overall Attendance</strong></td>
+              <td style="font-weight: bold; color: #047857;">${stats.percentage.toFixed(1)}%</td>
+            </tr>
+            <tr>
+              <td><strong>Total Present</strong></td>
+              <td>${stats.present} days</td>
+              <td><strong>Total Absent</strong></td>
+              <td>${stats.absent} days</td>
+            </tr>
+            <tr>
+              <td><strong>Total Leaves</strong></td>
+              <td>${stats.leave} days</td>
+              <td><strong>Total Logs</strong></td>
+              <td>${stats.total} days</td>
+            </tr>
+          </table>
+
+          <h2>Workplace Performance Breakdown</h2>
+          <table class="summary-table">
+            <thead>
+              <tr>
+                <th>Workplace</th>
+                <th style="text-align: right;">Attendance Rate</th>
+                <th style="text-align: right;">Present Days</th>
+                <th style="text-align: right;">Leave Days</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${summaryRowsHtml || '<tr><td colspan="4" style="text-align: center;">No active workplaces found</td></tr>'}
+            </tbody>
+          </table>
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
+    printWindow.focus();
+    printWindow.print();
+    triggerBanner('PDF Print opened.');
+  };
 
   return (
-    <div className="tab-content" role="region" aria-label="Workplace Attendance Reports">
+    <div className="tab-content" role="region" aria-label="Workplace Attendance Reports" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
       
-      {/* 1. Header Combined Search Box */}
-      <div className="action-card" style={{ marginBottom: '20px' }}>
-        <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-          <div className="search-container" style={{ flex: 1, marginBottom: 0 }}>
-            <span className="search-icon">🔍</span>
-            <input 
-              type="text" 
-              className="search-input" 
-              placeholder="Search by workplace, note, date..." 
-              value={searchQuery}
-              onChange={e => setSearchQuery(e.target.value)}
-              aria-label="Fuzzy search logs"
-            />
-          </div>
-          
-          <button 
-            className="btn btn-secondary"
-            style={{ 
-              padding: '12px 16px', 
-              borderRadius: '16px', 
-              fontSize: '13px', 
-              fontWeight: '700',
-              borderColor: showAdvanced ? 'var(--color-primary)' : 'var(--card-border)',
-              color: showAdvanced ? 'var(--color-primary)' : 'var(--text-primary)',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px'
-            }}
-            onClick={() => setShowAdvanced(!showAdvanced)}
-            aria-expanded={showAdvanced}
-          >
-            <span>⚙️</span>
-            <span style={{ display: 'none' }}>Filters</span>
-          </button>
+      {/* SECTION 1: MONTH & YEAR SELECTION */}
+      <section className="action-card" style={{ marginBottom: 0, padding: '16px' }}>
+        <h4 style={{ fontSize: '13px', fontWeight: '700', color: 'var(--text-secondary)', marginBottom: '8px' }}>Select Report Period</h4>
+        <div className="dropdown-flex-row">
+          <CustomDropdown 
+            value={selectedMonth} 
+            onChange={setSelectedMonth}
+            options={(selectedYear === currentYear ? monthNames.slice(0, currentMonth + 1) : monthNames).map((name, idx) => ({
+              value: idx,
+              label: name
+            }))}
+            ariaLabel="Select report month"
+          />
+          <CustomDropdown 
+            value={selectedYear} 
+            onChange={handleYearChange}
+            options={years.map(y => ({
+              value: y,
+              label: String(y)
+            }))}
+            ariaLabel="Select report year"
+          />
         </div>
+      </section>
 
-        {/* 2. Collapsible Advanced Filters Drawer */}
-        {showAdvanced && (
-          <div style={{ marginTop: '16px', paddingTop: '16px', borderTop: '1px solid var(--card-border)', animation: 'slideUp 0.25s ease-out' }}>
-            <div className="search-grid">
-              
-              {/* Status Chips Selector */}
-              <div className="form-group" style={{ marginBottom: '14px' }}>
-                <label>Attendance Statuses</label>
-                <div className="filter-chip-group">
-                  {['PRESENT', 'ABSENT', 'LEAVE', 'HALFDAY', 'HOLIDAY'].map(st => {
-                    const isActive = selectedStatuses.includes(st);
-                    return (
-                      <button
-                        key={st}
-                        className={`filter-chip ${isActive ? 'active' : ''}`}
-                        onClick={() => toggleStatusFilter(st)}
-                      >
-                        {st.charAt(0) + st.slice(1).toLowerCase()}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Shift Chips Selector */}
-              <div className="form-group" style={{ marginBottom: '14px' }}>
-                <label>Shift Timings</label>
-                <div className="filter-chip-group">
-                  {['GENERAL', 'MORNING', 'AFTERNOON', 'NIGHT'].map(sh => {
-                    const isActive = selectedShifts.includes(sh);
-                    return (
-                      <button
-                        key={sh}
-                        className={`filter-chip ${isActive ? 'active' : ''}`}
-                        onClick={() => toggleShiftFilter(sh)}
-                      >
-                        {sh.charAt(0) + sh.slice(1).toLowerCase()}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Date range pickers */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '10px' }}>
-                <div>
-                  <label style={{ fontSize: '11px', fontWeight: '700', color: 'var(--text-secondary)' }}>From Date</label>
-                  <input type="date" className="form-control" value={startDateStr} onChange={e => setStartDateStr(e.target.value)} />
-                </div>
-                <div>
-                  <label style={{ fontSize: '11px', fontWeight: '700', color: 'var(--text-secondary)' }}>To Date</label>
-                  <input type="date" className="form-control" value={endDateStr} onChange={e => setEndDateStr(e.target.value)} />
-                </div>
-              </div>
-
-            </div>
-
-            {/* Clear All triggers */}
-            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '16px' }}>
-              <button 
-                className="btn btn-secondary" 
-                style={{ padding: '6px 14px', borderRadius: '10px', fontSize: '12px', color: 'var(--color-danger)' }}
-                onClick={resetAllFilters}
-              >
-                Reset Filters
-              </button>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* 3. Search results counts summary metadata */}
-      {(searchQuery.trim() || selectedStatuses.length > 0 || selectedShifts.length > 0 || startDateStr || endDateStr) && (
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', padding: '0 4px' }}>
-          <span style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: '600' }}>
-            Found <strong style={{ color: 'var(--color-primary)' }}>{filteredLogs.length}</strong> matching log records
-          </span>
-          <button 
-            style={{ background: 'none', border: 'none', color: 'var(--color-primary)', fontSize: '12px', fontWeight: '700', cursor: 'pointer' }}
-            onClick={resetAllFilters}
-          >
-            Clear Search
-          </button>
+      {/* SECTION 2: EXPORT REPORTS */}
+      <section className="action-card" style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: 0 }}>
+        <h4 style={{ fontSize: '13px', fontWeight: '700', color: 'var(--text-secondary)', marginBottom: '4px' }}>Export Reports</h4>
+        <div style={{ display: 'flex', gap: '12px' }}>
+          <button className="btn btn-secondary" style={{ flex: 1, padding: '12px', height: '48px', borderRadius: '16px', fontWeight: '700' }} onClick={exportCSV}>CSV</button>
+          <button className="btn btn-primary" style={{ flex: 1, padding: '12px', height: '48px', borderRadius: '16px', fontWeight: '700' }} onClick={exportPDF}>PDF</button>
         </div>
-      )}
+      </section>
 
-      {/* 4. Logs rendering */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-        {filteredLogs.map(rec => {
-          const date = new Date(rec.timestamp);
-          const formatted = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) + ' • ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-          const comp = companies.find(c => c.id === rec.companyId);
-          const color = comp?.color || 'var(--color-primary)';
-          const shiftLabel = rec.shift || 'GENERAL';
-
-          return (
-            <SwipeableRow 
-              key={rec.id} 
-              onSwipeLeft={() => deleteRecord(rec.id)}
-              leftLabel="Locked"
-              rightLabel="Delete Log"
-            >
-              <div className="history-card" style={{ borderLeftColor: color, marginBottom: 0 }}>
-                <div className="history-left">
-                  <div className="history-indicator" style={{ background: color }}></div>
-                  <div className="history-details">
-                    <h4 style={{ color: 'var(--text-primary)', fontSize: '14px', fontWeight: '700' }}>{comp?.name || 'Company'}</h4>
-                    <p style={{ color: 'var(--text-secondary)', fontSize: '11px', marginTop: '2px' }}>
-                      {formatted} {rec.notes && `• ${rec.notes}`}
-                    </p>
-                    <span style={{ display: 'inline-block', fontSize: '9px', fontWeight: '800', background: 'var(--color-outline)', color: 'var(--text-primary)', padding: '2px 6px', borderRadius: '4px', marginTop: '4px' }}>
-                      Shift: {shiftLabel}
-                    </span>
-                  </div>
-                </div>
-
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <span className={`history-badge ${rec.status.toLowerCase()}`}>
-                    {rec.status}
-                  </span>
-                  <button 
-                    className="delete-btn" 
-                    onClick={() => deleteRecord(rec.id)}
-                    aria-label="Delete this log"
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
-                  </button>
-                </div>
-              </div>
-            </SwipeableRow>
-          );
-        })}
-
-        {filteredLogs.length === 0 && (
-          <div className="empty-state">
-            <h3>No Log Reports Found</h3>
-            <p>Adjust your search filters or clear tags to display log records.</p>
-          </div>
-        )}
-      </div>
     </div>
   );
 }

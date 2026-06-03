@@ -236,6 +236,8 @@ export const AppProvider = ({ children }) => {
     localStorage.setItem('ax_biometric_enabled', JSON.stringify(biometricEnabled));
   }, [biometricEnabled]);
 
+  const [activeCompanyId, setActiveCompanyId] = useState(null);
+
   // Persistent Theme Mode Applier (Light/Dark/System)
   useEffect(() => {
     const rootEl = document.documentElement;
@@ -646,6 +648,7 @@ export const AppProvider = ({ children }) => {
     <AppContext.Provider value={{
       userName, setUserName,
       drawerOpen, setDrawerOpen,
+      activeCompanyId, setActiveCompanyId,
       companies, addCompany, editCompany, deleteCompany, toggleArchiveCompany,
       calendarLogs, logAttendanceForDate, removeAttendanceForDate, bulkUpdateDates,
       leaves, logLeave, deleteLeave,
