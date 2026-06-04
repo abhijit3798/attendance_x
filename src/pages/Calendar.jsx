@@ -359,32 +359,60 @@ export default function Calendar() {
       {renderMonthView()}
 
       {/* Mini metrics analytics panel */}
-      <div className="action-card" style={{ marginTop: '20px' }}>
-        <h3 style={{ fontSize: '15px', fontWeight: '800', marginBottom: '16px' }}>Month Summary Metrics</h3>
+      <div className="wp-stats-panel" style={{ marginTop: '20px' }}>
+        <h3 className="wp-stats-title">Month Summary Metrics</h3>
         
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px', marginBottom: '16px' }}>
-          <div style={{ background: 'var(--color-outline)', borderRadius: '12px', padding: '10px', textAlign: 'center' }}>
-            <div style={{ fontSize: '20px', fontWeight: '800', color: 'var(--success)' }}>{stats.present}</div>
-            <div style={{ fontSize: '10px', color: 'var(--text-secondary)' }}>Present</div>
+        {stats.totalDays === 0 ? (
+          <div style={{ textAlign: 'center', padding: '24px 0', color: 'var(--text-secondary)', fontWeight: '600', fontSize: '14px' }}>
+            No attendance data available
           </div>
-          <div style={{ background: 'var(--color-outline)', borderRadius: '12px', padding: '10px', textAlign: 'center' }}>
-            <div style={{ fontSize: '20px', fontWeight: '800', color: 'var(--danger)' }}>{stats.absent}</div>
-            <div style={{ fontSize: '10px', color: 'var(--text-secondary)' }}>Absent</div>
-          </div>
-          <div style={{ background: 'var(--color-outline)', borderRadius: '12px', padding: '10px', textAlign: 'center' }}>
-            <div style={{ fontSize: '20px', fontWeight: '800', color: 'var(--warning)' }}>{stats.leave}</div>
-            <div style={{ fontSize: '10px', color: 'var(--text-secondary)' }}>Leave</div>
-          </div>
-        </div>
+        ) : (
+          <>
+            <div className="wp-stats-row">
+              <div className="wp-stat-box">
+                <div className="wp-stat-number present">{stats.present}</div>
+                <div className="wp-stat-label">Present</div>
+              </div>
+              <div className="wp-stat-box">
+                <div className="wp-stat-number absent">{stats.absent}</div>
+                <div className="wp-stat-label">Absent</div>
+              </div>
+              <div className="wp-stat-box">
+                <div className="wp-stat-number leave">{stats.leave}</div>
+                <div className="wp-stat-label">Leave</div>
+              </div>
+              <div className="wp-stat-box">
+                <div className="wp-stat-number holiday" style={{ color: 'var(--info)' }}>{stats.holiday}</div>
+                <div className="wp-stat-label">Holiday</div>
+              </div>
+              <div className="wp-stat-box">
+                <div className="wp-stat-number weekoff" style={{ color: 'var(--purple)' }}>{stats.weekoff}</div>
+                <div className="wp-stat-label">Week Off</div>
+              </div>
+            </div>
 
-        {/* SVG Ratio Gauge */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '13px' }}>
-          <span style={{ fontWeight: '700' }}>Attendance Rate</span>
-          <strong style={{ color: 'var(--color-primary)' }}>{stats.percentage.toFixed(1)}%</strong>
-        </div>
-        <div className="progress-bar-container" style={{ marginTop: '8px', marginBottom: 0 }}>
-          <div className="progress-bar-fill" style={{ width: `${stats.percentage}%`, background: 'var(--color-primary)' }}></div>
-        </div>
+            <div className="progress-bar-container" style={{ margin: '8px 0', height: '8px' }}>
+              <div
+                className="progress-bar-fill"
+                style={{
+                  width: `${stats.percentage}%`,
+                  background: stats.percentage >= targetPercentage ? 'var(--color-primary)' : 'var(--color-danger)'
+                }}
+              />
+            </div>
+
+            <div className="wp-rate-container">
+              <span className="wp-rate-label">Monthly Percentage</span>
+              <span className="wp-rate-value" style={{ color: stats.percentage >= targetPercentage ? 'var(--color-success)' : 'var(--color-danger)' }}>
+                {stats.percentage.toFixed(1)}%
+              </span>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: 'var(--text-secondary)', marginTop: '4px', fontWeight: '600' }}>
+              <span>Target Workplace Percentage</span>
+              <span>{targetPercentage}%</span>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );
