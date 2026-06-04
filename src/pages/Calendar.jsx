@@ -1,6 +1,7 @@
-import { useContext, useState } from 'react';
+import { useContext, useState, useEffect } from 'react';
 import { AppContext } from '../context/AppState';
 import CustomDropdown from '../components/CustomDropdown';
+import { AddCompanyDialog } from '../components/Dialogs';
 
 export default function Calendar() {
   const {
@@ -9,6 +10,45 @@ export default function Calendar() {
     companies,
     lastCompanyId
   } = useContext(AppContext);
+
+  const activeCompanies = (companies || []).filter(c => c && !c.isArchived);
+
+  // Workplace Selector states
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [selectedCompanyId, setSelectedCompanyId] = useState(() => {
+    const saved = localStorage.getItem('lastSelectedCompanyId');
+    if (saved) {
+      const parsed = parseInt(saved);
+      if (activeCompanies.some(c => c.id === parsed)) {
+        return parsed;
+      }
+    }
+    if (lastCompanyId && activeCompanies.some(c => c.id === lastCompanyId)) {
+      return lastCompanyId;
+    }
+    return activeCompanies.length > 0 ? activeCompanies[0].id : '';
+  });
+
+  useEffect(() => {
+    if (activeCompanies.length > 0) {
+      if (!selectedCompanyId || !activeCompanies.some(c => c.id === selectedCompanyId)) {
+        const firstId = activeCompanies[0].id;
+        setSelectedCompanyId(firstId);
+        localStorage.setItem('lastSelectedCompanyId', String(firstId));
+      }
+    } else {
+      setSelectedCompanyId('');
+    }
+  }, [activeCompanies, selectedCompanyId]);
+
+  const handleCompanyChange = (id) => {
+    const parsedId = parseInt(id);
+    setSelectedCompanyId(parsedId);
+    localStorage.setItem('lastSelectedCompanyId', String(parsedId));
+  };
+
+  const company = activeCompanies.find(c => c.id === selectedCompanyId) || {};
+  const targetPercentage = company.targetPercentage || 75.0;
 
   // Calendar states (locked to Month View)
   const view = 'month';
@@ -92,14 +132,32 @@ export default function Calendar() {
   // Check state of cell date from records and leaves
   const getDayLog = (dateStr) => {
     // 1. Check leaves
-    const leave = leaves.find(l => l.companyId === lastCompanyId && l.date === dateStr && l.status === 'APPROVED');
+    const leave = leaves.find(l => l.companyId === selectedCompanyId && l.date === dateStr && l.status === 'APPROVED');
     if (leave) return { status: 'LEAVE', notes: leave.reason };
 
     // 2. Check records
-    const record = records.find(r => r.companyId === lastCompanyId && getRecordDateString(r.timestamp) === dateStr);
+    const record = records.find(r => r.companyId === selectedCompanyId && getRecordDateString(r.timestamp) === dateStr);
     if (record) return { status: record.status, notes: record.notes };
 
     return null;
+  };
+
+  // Check state of cell date from records and leaves to determine visual status class
+  const getDayStatus = (dateStr) => {
+    // 1. Check leaves
+    const leave = leaves.find(l => l.companyId === selectedCompanyId && l.date === dateStr && l.status === 'APPROVED');
+    if (leave) return 'leave';
+
+    // 2. Check records
+    const record = records.find(r => r.companyId === selectedCompanyId && getRecordDateString(r.timestamp) === dateStr);
+    if (record) {
+      if (record.status === 'PRESENT' || record.status === 'OVERTIME') return 'present';
+      if (record.status === 'ABSENT') return 'absent';
+      if (record.status === 'HALFDAY') return 'present'; // half day counts as present/active
+      if (record.status === 'HOLIDAY') return 'holiday';
+      if (record.status === 'WEEKOFF') return 'weekoff';
+    }
+    return '';
   };
 
   // ----------------------------------------------------
@@ -109,19 +167,44 @@ export default function Calendar() {
     const monthPrefix = `${year}-${(month + 1).toString().padStart(2, '0')}`;
     
     // Filter leaves for this company in active month
-    const compLeaves = leaves.filter(l => l.companyId === lastCompanyId && l.date.startsWith(monthPrefix) && l.status === 'APPROVED');
+    const compLeaves = leaves.filter(l => l.companyId === selectedCompanyId && l.date.startsWith(monthPrefix) && l.status === 'APPROVED');
     // Filter records for this company in active month
-    const compRecs = records.filter(r => r.companyId === lastCompanyId && getRecordDateString(r.timestamp).startsWith(monthPrefix));
+    const compRecs = records.filter(r => r.companyId === selectedCompanyId && getRecordDateString(r.timestamp).startsWith(monthPrefix));
 
-    const present = compRecs.filter(r => r.status === 'PRESENT' || r.status === 'OVERTIME').length;
-    const absent = compRecs.filter(r => r.status === 'ABSENT').length;
-    const halfday = compRecs.filter(r => r.status === 'HALFDAY').length;
-    const leave = compLeaves.length;
+    let present = 0;
+    let absent = 0;
+    let leave = compLeaves.length;
+    let holiday = 0;
+    let weekoff = 0;
 
-    const totalDays = present + absent + halfday;
-    const rate = totalDays > 0 ? ((present + halfday * 0.5) / totalDays) * 100 : 100.0;
+    compRecs.forEach(r => {
+      if (r.status === 'PRESENT' || r.status === 'OVERTIME') {
+        present += 1;
+      } else if (r.status === 'ABSENT') {
+        absent += 1;
+      } else if (r.status === 'HALFDAY') {
+        present += 0.5;
+        absent += 0.5;
+      } else if (r.status === 'HOLIDAY') {
+        holiday += 1;
+      } else if (r.status === 'WEEKOFF') {
+        weekoff += 1;
+      }
+    });
 
-    return { present: present + halfday * 0.5, absent, leave, percentage: rate };
+    const totalDays = present + absent + leave + holiday + weekoff;
+    const workingDays = present + absent + leave;
+    const percentage = workingDays > 0 ? (present / workingDays) * 100 : 100.0;
+
+    return {
+      present,
+      absent,
+      leave,
+      holiday,
+      weekoff,
+      percentage,
+      totalDays
+    };
   };
 
   const stats = getPeriodStats();
@@ -206,36 +289,28 @@ export default function Calendar() {
           </button>
         </div>
 
-        {/* Calendar Weekday headers */}
-        <div className="calendar-grid">
-          {['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].map(d => (
-            <div key={d} className="calendar-header-day">{d}</div>
+        {/* Calendar grid */}
+        <div className="wp-calendar-grid">
+          {/* Weekday headers */}
+          {['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].map(day => (
+            <div key={day} className="wp-weekday-header">{day}</div>
           ))}
-        </div>
-
-        {/* Date cells grid (Completely Read-Only, No event listeners) */}
-        <div className="calendar-grid">
           {cells.map((cell, idx) => {
             if (cell.type === 'empty') {
-              return <div key={`empty-${idx}`} className="calendar-day-cell empty" />;
+              return <div key={`empty-${idx}`} className="wp-day-cell empty" />;
             }
 
-            const log = cell.log;
-            const statusColor = log ? (statuses[log.status]?.color || 'var(--card-border)') : '';
+            const status = getDayStatus(cell.dateKey);
+            const isToday = cell.dateKey === getRecordDateString(Date.now());
 
             return (
               <div
                 key={cell.dateKey}
-                className="calendar-day-cell"
-                style={{
-                  backgroundColor: statusColor && log ? `${statusColor}1c` : '',
-                  borderColor: statusColor || 'var(--card-border)',
-                  color: statusColor ? statusColor : 'var(--text-primary)',
-                  fontWeight: '700',
-                  borderWidth: '1px'
-                }}
+                className={`wp-day-cell ${status} ${isToday ? 'today' : ''}`}
+                style={{ pointerEvents: 'none' }}
               >
-                {cell.day}
+                <span>{cell.day}</span>
+                {status && <div className="wp-day-indicator-dot" />}
               </div>
             );
           })}
@@ -244,9 +319,42 @@ export default function Calendar() {
     );
   };
 
+  if (activeCompanies.length === 0) {
+    return (
+      <div className="tab-content" role="region" aria-label="Calendar Empty State" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '300px', textAlign: 'center', gap: '16px' }}>
+        <h3 style={{ fontSize: '18px', fontWeight: '800' }}>No workplace available</h3>
+        <p style={{ color: 'var(--text-secondary)', fontSize: '14px', maxWidth: '300px', margin: '0 auto 12px auto' }}>
+          Add a workplace on the dashboard or click below to start tracking.
+        </p>
+        <button className="btn btn-primary" onClick={() => setShowAddModal(true)}>
+          + Add Workplace
+        </button>
+        <AddCompanyDialog open={showAddModal} onClose={() => setShowAddModal(false)} />
+      </div>
+    );
+  }
+
+  const companyOptions = activeCompanies.map(c => ({
+    value: c.id,
+    label: c.name
+  }));
+
   return (
     <div className="tab-content" role="region" aria-label="Interactive Attendance Calendar Interface">
       
+      {/* Workplace Selection Card */}
+      <div className="action-card" style={{ marginBottom: '20px' }}>
+        <h4 style={{ fontSize: '13px', fontWeight: '700', color: 'var(--text-secondary)', marginBottom: '8px' }}>Select Workplace</h4>
+        <div style={{ display: 'flex', width: '100%' }}>
+          <CustomDropdown 
+            value={selectedCompanyId} 
+            onChange={handleCompanyChange}
+            options={companyOptions}
+            ariaLabel="Select workplace"
+          />
+        </div>
+      </div>
+
       {/* Active Presentation View */}
       {renderMonthView()}
 

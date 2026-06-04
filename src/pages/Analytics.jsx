@@ -1,7 +1,8 @@
-import React, { useContext, useState } from 'react';
+import React, { useContext, useState, useEffect } from 'react';
 import { AppContext } from '../context/AppState';
 import StatsCard from '../components/StatsCard';
 import CustomDropdown from '../components/CustomDropdown';
+import { AddCompanyDialog } from '../components/Dialogs';
 
 export default function Analytics() {
   const context = useContext(AppContext) || {};
@@ -23,6 +24,37 @@ export default function Analytics() {
 
   // Filter out archived companies
   const activeCompanies = (companies || []).filter(c => c && !c.isArchived);
+
+  // Workplace Selector states
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [selectedCompanyId, setSelectedCompanyId] = useState(() => {
+    const saved = localStorage.getItem('lastSelectedCompanyId');
+    if (saved) {
+      const parsed = parseInt(saved);
+      if (activeCompanies.some(c => c.id === parsed)) {
+        return parsed;
+      }
+    }
+    return activeCompanies.length > 0 ? activeCompanies[0].id : '';
+  });
+
+  useEffect(() => {
+    if (activeCompanies.length > 0) {
+      if (!selectedCompanyId || !activeCompanies.some(c => c.id === selectedCompanyId)) {
+        const firstId = activeCompanies[0].id;
+        setSelectedCompanyId(firstId);
+        localStorage.setItem('lastSelectedCompanyId', String(firstId));
+      }
+    } else {
+      setSelectedCompanyId('');
+    }
+  }, [activeCompanies, selectedCompanyId]);
+
+  const handleCompanyChange = (id) => {
+    const parsedId = parseInt(id);
+    setSelectedCompanyId(parsedId);
+    localStorage.setItem('lastSelectedCompanyId', String(parsedId));
+  };
 
   // Month names
   const monthNames = [
@@ -56,32 +88,33 @@ export default function Analytics() {
   };
 
   // Calculate statistics for a given month prefix (YYYY-MM)
-  const getStatsForMonth = (monthStr) => {
+  const getStatsForMonth = (monthStr, companyId) => {
+    if (!companyId) return { present: 0, absent: 0, leave: 0, percentage: 100.0, total: 0 };
+
+    const compRecs = (records || []).filter(r => r && r.companyId === companyId && r.timestamp && getRecordDateString(r.timestamp).startsWith(monthStr));
+    const compLeaves = (leaves || []).filter(l => l && l.companyId === companyId && l.date && l.date.startsWith(monthStr) && l.status === 'APPROVED');
+
     let present = 0;
     let absent = 0;
-    let leave = 0;
-    
-    Object.keys(calendarLogs || {}).forEach(date => {
-      if (date && date.startsWith(monthStr)) {
-        const log = calendarLogs[date];
-        if (log) {
-          if (log.status === 'PRESENT' || log.status === 'OVERTIME') present++;
-          else if (log.status === 'ABSENT') absent++;
-          else if (log.status === 'HALFDAY') {
-            present += 0.5;
-            absent += 0.5;
-          } else if (log.status === 'LEAVE') leave++;
-        }
+
+    compRecs.forEach(r => {
+      if (r.status === 'PRESENT' || r.status === 'OVERTIME') {
+        present += 1;
+      } else if (r.status === 'ABSENT') {
+        absent += 1;
+      } else if (r.status === 'HALFDAY') {
+        present += 0.5;
+        absent += 0.5;
       }
     });
 
     const total = present + absent;
     const percentage = total > 0 ? (present / total) * 100 : 100.0;
-    return { present, absent, leave, percentage, total };
+    return { present, absent, leave: compLeaves.length, percentage, total };
   };
 
   const monthPrefix = `${filterYear}-${(filterMonth + 1).toString().padStart(2, '0')}`;
-  const selectedMonthStats = getStatsForMonth(monthPrefix);
+  const selectedMonthStats = getStatsForMonth(monthPrefix, selectedCompanyId);
 
   // Calculate 3 months: selected month as LAST, and previous 2 months
   const getThreeMonths = () => {
@@ -126,7 +159,7 @@ export default function Analytics() {
   };
 
   // Weekly stats for the active month (weeks 1-7, 8-14, 15-21, 22-28, 29+)
-  const getWeeklyStats = () => {
+  const getWeeklyStats = (companyId) => {
     const weeks = [
       { label: 'W1', start: 1, end: 7 },
       { label: 'W2', start: 8, end: 14 },
@@ -139,17 +172,19 @@ export default function Analytics() {
       weeks.push({ label: 'W5', start: 29, end: daysInMonth });
     }
 
+    if (!companyId) return weeks.map(w => ({ ...w, rate: 100.0 }));
+
     return weeks.map(w => {
       let present = 0;
       let absent = 0;
       
       for (let d = w.start; d <= w.end; d++) {
         const dateStr = `${filterYear}-${(filterMonth + 1).toString().padStart(2, '0')}-${d.toString().padStart(2, '0')}`;
-        const log = calendarLogs[dateStr];
-        if (log) {
-          if (log.status === 'PRESENT' || log.status === 'OVERTIME') present++;
-          else if (log.status === 'ABSENT') absent++;
-          else if (log.status === 'HALFDAY') {
+        const rec = (records || []).find(r => r && r.companyId === companyId && getRecordDateString(r.timestamp) === dateStr);
+        if (rec) {
+          if (rec.status === 'PRESENT' || rec.status === 'OVERTIME') present++;
+          else if (rec.status === 'ABSENT') absent++;
+          else if (rec.status === 'HALFDAY') {
             present += 0.5;
             absent += 0.5;
           }
@@ -163,9 +198,11 @@ export default function Analytics() {
   };
 
   // Cumulative progression stats for selected month (Day 5, 10, 15, 20, 25, End)
-  const getProgressionStats = () => {
+  const getProgressionStats = (companyId) => {
     const daysInMonth = new Date(filterYear, filterMonth + 1, 0).getDate();
     const intervals = [5, 10, 15, 20, 25, daysInMonth];
+
+    if (!companyId) return intervals.map(day => ({ day, rate: 100.0 }));
     
     return intervals.map(day => {
       let present = 0;
@@ -173,11 +210,11 @@ export default function Analytics() {
       
       for (let d = 1; d <= day; d++) {
         const dateStr = `${filterYear}-${(filterMonth + 1).toString().padStart(2, '0')}-${d.toString().padStart(2, '0')}`;
-        const log = calendarLogs[dateStr];
-        if (log) {
-          if (log.status === 'PRESENT' || log.status === 'OVERTIME') present++;
-          else if (log.status === 'ABSENT') absent++;
-          else if (log.status === 'HALFDAY') {
+        const rec = (records || []).find(r => r && r.companyId === companyId && getRecordDateString(r.timestamp) === dateStr);
+        if (rec) {
+          if (rec.status === 'PRESENT' || rec.status === 'OVERTIME') present++;
+          else if (rec.status === 'ABSENT') absent++;
+          else if (rec.status === 'HALFDAY') {
             present += 0.5;
             absent += 0.5;
           }
@@ -189,8 +226,6 @@ export default function Analytics() {
       return { day, rate };
     });
   };
-
-
 
   // Donut/Pie renderer
   const renderPieChart = () => {
@@ -226,7 +261,7 @@ export default function Analytics() {
 
   // Weekly bar chart renderer
   const renderBarChart = () => {
-    const weeklyData = getWeeklyStats();
+    const weeklyData = getWeeklyStats(selectedCompanyId);
     return (
       <div style={{ width: '100%', display: 'flex', justifyContent: 'space-around', alignItems: 'flex-end', height: '140px', background: 'var(--color-outline)', borderRadius: '12px', padding: '10px 0', boxSizing: 'border-box' }}>
         {weeklyData.map(w => (
@@ -249,7 +284,7 @@ export default function Analytics() {
 
   // Progression Line chart renderer
   const renderLineChart = () => {
-    const points = getProgressionStats();
+    const points = getProgressionStats(selectedCompanyId);
     const width = 280;
     const height = 100;
     const paddingX = 15;
@@ -319,10 +354,38 @@ export default function Analytics() {
     );
   };
 
+  if (activeCompanies.length === 0) {
+    return (
+      <div className="tab-content" role="region" aria-label="Analytics Empty State" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '300px', textAlign: 'center', gap: '16px' }}>
+        <h3 style={{ fontSize: '18px', fontWeight: '800' }}>No workplace available</h3>
+        <p style={{ color: 'var(--text-secondary)', fontSize: '14px', maxWidth: '300px', margin: '0 auto 12px auto' }}>
+          Add a workplace on the dashboard or click below to start tracking.
+        </p>
+        <button className="btn btn-primary" onClick={() => setShowAddModal(true)}>
+          + Add Workplace
+        </button>
+        <AddCompanyDialog open={showAddModal} onClose={() => setShowAddModal(false)} />
+      </div>
+    );
+  }
+
   return (
     <div className="tab-content" role="region" aria-label="Analytics Module" style={{ display: 'flex', flexDirection: 'column', gap: '20px', paddingBottom: '24px' }}>
       
-      {/* SECTION 1: MONTH SELECTION */}
+      {/* SECTION 1: WORKPLACE SELECTION */}
+      <section className="action-card" style={{ marginBottom: 0, padding: '16px' }}>
+        <h4 style={{ fontSize: '13px', fontWeight: '700', color: 'var(--text-secondary)', marginBottom: '8px' }}>Select Workplace</h4>
+        <div style={{ display: 'flex', width: '100%' }}>
+          <CustomDropdown 
+            value={selectedCompanyId} 
+            onChange={handleCompanyChange}
+            options={activeCompanies.map(c => ({ value: c.id, label: c.name }))}
+            ariaLabel="Select workplace"
+          />
+        </div>
+      </section>
+
+      {/* SECTION 2: MONTH SELECTION */}
       <section className="action-card" style={{ marginBottom: 0, padding: '16px' }}>
         <h4 style={{ fontSize: '13px', fontWeight: '700', color: 'var(--text-secondary)', marginBottom: '8px' }}>Select Month</h4>
         <div className="dropdown-flex-row">
@@ -347,7 +410,7 @@ export default function Analytics() {
         </div>
       </section>
 
-      {/* SECTION 2: ATTENDANCE TREND */}
+      {/* SECTION 3: ATTENDANCE TREND */}
       <section className="action-card" style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '16px', marginBottom: 0, borderRadius: '16px', height: 'auto', overflow: 'hidden' }}>
         <div className="trend-tabs-container">
           <button className={`trend-tab-btn ${activeChart === 'pie' ? 'active' : ''}`} onClick={() => setActiveChart('pie')}>Pie</button>
@@ -362,7 +425,7 @@ export default function Analytics() {
         </div>
       </section>
 
-      {/* SECTION 3: MONTHLY LOG ACTIVITY */}
+      {/* SECTION 4: MONTHLY LOG ACTIVITY */}
       <section style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
         <h3 style={{ fontSize: '16px', fontWeight: '800', borderLeft: '3px solid var(--color-primary)', paddingLeft: '8px' }}>
           Monthly Log Activity
@@ -383,7 +446,7 @@ export default function Analytics() {
             }}
           >
             {getThreeMonths().map(m => {
-              const stats = getStatsForMonth(m.prefix);
+              const stats = getStatsForMonth(m.prefix, selectedCompanyId);
               const barHeight = `${Math.max(stats.percentage, 6)}%`;
               return (
                 <div 
@@ -431,14 +494,16 @@ export default function Analytics() {
         </div>
       </section>
 
-      {/* SECTION 4: WORKPLACE PERFORMANCE */}
+      {/* SECTION 5: WORKPLACE PERFORMANCE */}
       <section style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
         <h3 style={{ fontSize: '16px', fontWeight: '800', borderLeft: '3px solid var(--color-primary)', paddingLeft: '8px' }}>
           Workplace Performance
         </h3>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-          {activeCompanies.map(comp => {
+          {(() => {
+            const comp = activeCompanies.find(c => c.id === selectedCompanyId);
+            if (!comp) return null;
             const stats = getCompanyStatsForSelectedMonth(comp.id);
             return (
               <div 
@@ -457,13 +522,7 @@ export default function Analytics() {
                 </span>
               </div>
             );
-          })}
-          
-          {activeCompanies.length === 0 && (
-            <div className="empty-state" style={{ padding: '20px' }}>
-              <p style={{ fontSize: '12px' }}>No active workplaces logged.</p>
-            </div>
-          )}
+          })()}
         </div>
       </section>
 

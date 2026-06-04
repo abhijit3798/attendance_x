@@ -18,6 +18,10 @@
   --danger-glow: var(--color-danger-container);
   --warning: var(--color-warning);
   --warning-glow: var(--color-warning-container);
+  --info: #3b82f6;
+  --info-glow: rgba(59, 130, 246, 0.12);
+  --purple: #8b5cf6;
+  --purple-glow: rgba(139, 92, 246, 0.12);
   --border-radius: var(--m3-border-radius);
   --transition: var(--m3-transition);
 }
@@ -1296,6 +1300,18 @@ body {
   border-color: var(--warning);
 }
 
+.wp-day-cell.holiday {
+  background: var(--info-glow);
+  color: var(--info);
+  border-color: var(--info);
+}
+
+.wp-day-cell.weekoff {
+  background: var(--purple-glow);
+  color: var(--purple);
+  border-color: var(--purple);
+}
+
 .wp-day-cell.today {
   box-shadow: inset 0 0 0 2px var(--color-primary);
 }
@@ -1310,6 +1326,8 @@ body {
 .wp-day-cell.present .wp-day-indicator-dot { background: var(--success); }
 .wp-day-cell.absent .wp-day-indicator-dot { background: var(--danger); }
 .wp-day-cell.leave .wp-day-indicator-dot { background: var(--warning); }
+.wp-day-cell.holiday .wp-day-indicator-dot { background: var(--info); }
+.wp-day-cell.weekoff .wp-day-indicator-dot { background: var(--purple); }
 
 /* Bottom stats panels */
 .wp-stats-panel {
@@ -1330,8 +1348,8 @@ body {
 
 .wp-stats-row {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 10px;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 6px;
   margin-bottom: 16px;
 }
 

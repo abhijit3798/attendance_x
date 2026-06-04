@@ -21,15 +21,32 @@
     <!-- PWA Offline Service Worker Registration Hook -->
     <script>
       if ('serviceWorker' in navigator) {
-        window.addEventListener('load', () => {
-          navigator.serviceWorker.register('/sw.js')
-            .then((reg) => {
-              console.log('Progressive Service Worker active: ', reg.scope);
-            })
-            .catch((err) => {
-              console.error('Service Worker activation failed: ', err);
+        if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+          navigator.serviceWorker.getRegistrations().then((registrations) => {
+            for (let registration of registrations) {
+              registration.unregister().then((success) => {
+                if (success) console.log('Development Service Worker unregistered successfully.');
+              });
+            }
+          });
+          if ('caches' in window) {
+            caches.keys().then((names) => {
+              for (let name of names) {
+                caches.delete(name);
+              }
             });
-        });
+          }
+        } else {
+          window.addEventListener('load', () => {
+            navigator.serviceWorker.register('/sw.js')
+              .then((reg) => {
+                console.log('Progressive Service Worker active: ', reg.scope);
+              })
+              .catch((err) => {
+                console.error('Service Worker activation failed: ', err);
+              });
+          });
+        }
       }
     </script>
   </body>

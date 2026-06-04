@@ -114,6 +114,8 @@ export default function WorkplaceCalendar({ companyId, onBack }) {
       if (record.status === 'PRESENT' || record.status === 'OVERTIME') return 'present';
       if (record.status === 'ABSENT') return 'absent';
       if (record.status === 'HALFDAY') return 'present'; // half day counts as present/active
+      if (record.status === 'HOLIDAY') return 'holiday';
+      if (record.status === 'WEEKOFF') return 'weekoff';
     }
     return '';
   };
@@ -127,7 +129,7 @@ export default function WorkplaceCalendar({ companyId, onBack }) {
     const filteredRecords = records.filter(r => !(r.companyId === companyId && getRecordDateString(r.timestamp) === targetDateStr));
     const filteredLeaves = leaves.filter(l => !(l.companyId === companyId && l.date === targetDateStr));
 
-    if (status === 'PRESENT' || status === 'ABSENT' || status === 'HALFDAY') {
+    if (status === 'PRESENT' || status === 'ABSENT' || status === 'HALFDAY' || status === 'HOLIDAY' || status === 'WEEKOFF') {
       const newRec = {
         id: Date.now(),
         companyId,
@@ -137,7 +139,8 @@ export default function WorkplaceCalendar({ companyId, onBack }) {
       };
       setRecords([newRec, ...filteredRecords]);
       setLeaves(filteredLeaves);
-      triggerBanner(`Marked ${status.toLowerCase()} for ${targetDateStr}`);
+      const friendlyStatus = status === 'WEEKOFF' ? 'week off' : status.toLowerCase();
+      triggerBanner(`Marked ${friendlyStatus} for ${targetDateStr}`);
     } else if (status === 'LEAVE') {
       const newLeave = {
         id: Date.now(),
@@ -169,6 +172,8 @@ export default function WorkplaceCalendar({ companyId, onBack }) {
 
     let present = 0;
     let absent = 0;
+    let holiday = 0;
+    let weekoff = 0;
 
     compRecs.forEach(r => {
       if (r.status === 'PRESENT' || r.status === 'OVERTIME') {
@@ -178,16 +183,22 @@ export default function WorkplaceCalendar({ companyId, onBack }) {
       } else if (r.status === 'HALFDAY') {
         present += 0.5;
         absent += 0.5; // Counts half-present and half-absent
+      } else if (r.status === 'HOLIDAY') {
+        holiday += 1;
+      } else if (r.status === 'WEEKOFF') {
+        weekoff += 1;
       }
     });
 
-    const total = present + absent;
-    const percentage = total > 0 ? (present / total) * 100 : 100.0;
+    const totalDays = present + absent;
+    const percentage = totalDays > 0 ? (present / totalDays) * 100 : 100.0;
 
     return {
       present,
       absent,
       leaves: compLeaves.length,
+      holiday,
+      weekoff,
       percentage
     };
   };
@@ -273,7 +284,15 @@ export default function WorkplaceCalendar({ companyId, onBack }) {
             </div>
             <div className="wp-stat-box">
               <div className="wp-stat-number leave">{monthlyStats.leaves}</div>
-              <div className="wp-stat-label">Leaves</div>
+              <div className="wp-stat-label">Leave</div>
+            </div>
+            <div className="wp-stat-box">
+              <div className="wp-stat-number holiday" style={{ color: 'var(--info)' }}>{monthlyStats.holiday}</div>
+              <div className="wp-stat-label">Holiday</div>
+            </div>
+            <div className="wp-stat-box">
+              <div className="wp-stat-number weekoff" style={{ color: 'var(--purple)' }}>{monthlyStats.weekoff}</div>
+              <div className="wp-stat-label">Week Off</div>
             </div>
           </div>
 
@@ -323,6 +342,12 @@ export default function WorkplaceCalendar({ companyId, onBack }) {
               </button>
               <button className="btn" style={{ background: 'var(--warning-glow)', color: 'var(--warning)', border: '1px solid var(--warning)' }} onClick={() => handleSaveStatus('LEAVE')}>
                 Leave
+              </button>
+              <button className="btn" style={{ background: 'var(--info-glow)', color: 'var(--info)', border: '1px solid var(--info)' }} onClick={() => handleSaveStatus('HOLIDAY')}>
+                Holiday
+              </button>
+              <button className="btn" style={{ background: 'var(--purple-glow)', color: 'var(--purple)', border: '1px solid var(--purple)' }} onClick={() => handleSaveStatus('WEEKOFF')}>
+                Week Off
               </button>
               <button className="btn btn-secondary" onClick={() => handleSaveStatus('CLEAR')}>
                 Clear Log
