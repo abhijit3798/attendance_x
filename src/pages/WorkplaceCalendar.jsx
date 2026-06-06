@@ -174,6 +174,7 @@ export default function WorkplaceCalendar({ companyId, onBack }) {
     let absent = 0;
     let holiday = 0;
     let weekoff = 0;
+    let leave = compLeaves.length;
 
     compRecs.forEach(r => {
       if (r.status === 'PRESENT' || r.status === 'OVERTIME') {
@@ -190,13 +191,13 @@ export default function WorkplaceCalendar({ companyId, onBack }) {
       }
     });
 
-    const totalDays = present + absent;
-    const percentage = totalDays > 0 ? (present / totalDays) * 100 : 100.0;
+    const workingDays = present + absent + leave;
+    const percentage = workingDays > 0 ? (present / workingDays) * 100 : 100.0;
 
     return {
       present,
       absent,
-      leaves: compLeaves.length,
+      leaves: leave,
       holiday,
       weekoff,
       percentage

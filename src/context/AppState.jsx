@@ -354,7 +354,9 @@ export const AppProvider = ({ children }) => {
 
   const deleteCompany = (id, name) => {
     setCompanies(companies.filter(c => c.id !== id));
-    triggerBanner(`Deleted workplace: ${name}`);
+    setRecords(prevRecs => prevRecs.filter(r => r.companyId !== id));
+    setLeaves(prevLeaves => prevLeaves.filter(l => l.companyId !== id));
+    triggerBanner(`Workplace deleted successfully`);
   };
 
   const toggleArchiveCompany = (id, name) => {

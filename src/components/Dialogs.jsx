@@ -6,53 +6,146 @@ export function AddCompanyDialog({ open, onClose }) {
   const [name, setName] = useState('');
   const [location, setLocation] = useState('');
   const [target, setTarget] = useState('75');
+  const [targetError, setTargetError] = useState('');
   const accentColors = ['#10B981', '#34D399', '#059669', '#047857', '#6EE7B7', '#1B5E20', '#2E7D32'];
   const [color, setColor] = useState(accentColors[0]);
 
+  useEffect(() => {
+    if (open) {
+      setName('');
+      setLocation('');
+      setTarget('75');
+      setTargetError('');
+      setColor(accentColors[0]);
+    }
+  }, [open]);
+
   if (!open) return null;
 
+  const handleTargetChange = (e) => {
+    const val = e.target.value;
+    if (val === '') {
+      setTarget('');
+      setTargetError('Target attendance is required');
+      return;
+    }
+
+    // Input: Numeric only (allow only digits)
+    if (!/^\d*$/.test(val)) {
+      return;
+    }
+
+    // Max: 3 digits
+    if (val.length > 3) {
+      return;
+    }
+
+    let formattedVal = val;
+    if (formattedVal.length > 1 && formattedVal.startsWith('0')) {
+      formattedVal = parseInt(formattedVal, 10).toString();
+    }
+
+    setTarget(formattedVal);
+
+    const num = parseInt(formattedVal, 10);
+    if (num > 100) {
+      setTargetError('Target attendance must be between 0 and 100');
+    } else {
+      setTargetError('');
+    }
+  };
+
+  const isAddDisabled = !name.trim() || target === '' || targetError !== '';
+
   const submit = () => {
-    if (!name.trim()) return;
-    addCompany(name, location, target, color);
-    setName(''); setLocation(''); setTarget('75');
+    if (isAddDisabled) return;
+    const finalTarget = parseInt(target, 10) || 0;
+    addCompany(name, location, finalTarget, color);
     onClose();
   };
 
   return (
     <div className="modal-overlay">
-      <div className="modal-content" role="dialog" aria-modal="true" aria-label="Add Workplace Form">
-        <div className="modal-header">
-          <h3>Add Workplace</h3>
-          <button className="modal-close" onClick={onClose} aria-label="Close modal">×</button>
-        </div>
-        <div className="form-group">
-          <label>Company / Institution Name *</label>
-          <input type="text" className="form-control" placeholder="e.g. SpaceX" value={name} onChange={e => setName(e.target.value)} />
-        </div>
-        <div className="form-group">
-          <label>Location / Room</label>
-          <input type="text" className="form-control" placeholder="e.g. Remote / Room 101" value={location} onChange={e => setLocation(e.target.value)} />
-        </div>
-        <div className="form-group">
-          <label>Target Attendance (%)</label>
-          <input type="number" className="form-control" placeholder="75" value={target} onChange={e => setTarget(e.target.value)} />
-        </div>
-        <div className="form-group">
-          <label>Theme Accent Green</label>
-          <div className="color-picker-grid">
-            {accentColors.map(c => (
-              <div 
-                key={c} 
-                className={`color-dot ${color === c ? 'active' : ''}`} 
-                style={{ background: c }} 
-                onClick={() => setColor(c)}
-              />
-            ))}
+      <div 
+        className="modal-content" 
+        role="dialog" 
+        aria-modal="true" 
+        aria-label="Add Workplace Form"
+        style={{ display: 'flex', flexDirection: 'column', padding: 0, overflow: 'hidden' }}
+      >
+        <div style={{ flex: 1, overflowY: 'auto', padding: '30px 24px 12px 24px' }}>
+          <div className="modal-header">
+            <h3>Add Workplace</h3>
+            <button className="modal-close" onClick={onClose} aria-label="Close modal">×</button>
+          </div>
+          <div className="form-group">
+            <label>Company Name *</label>
+            <input type="text" className="form-control" placeholder="e.g. SpaceX" value={name} onChange={e => setName(e.target.value)} />
+          </div>
+          <div className="form-group">
+            <label>Location</label>
+            <input type="text" className="form-control" placeholder="e.g. Remote" value={location} onChange={e => setLocation(e.target.value)} />
+          </div>
+          <div className="form-group">
+            <label>Target Attendance (%)</label>
+            <input 
+              type="text" 
+              inputMode="numeric"
+              pattern="[0-9]*"
+              className="form-control" 
+              placeholder="75" 
+              value={target} 
+              onChange={handleTargetChange} 
+            />
+            {targetError && (
+              <div style={{ color: 'var(--color-danger)', fontSize: '12px', marginTop: '6px', fontWeight: '700' }}>
+                {targetError}
+              </div>
+            )}
+          </div>
+          <div className="form-group">
+            <label>Theme Accent Green</label>
+            <div className="color-picker-grid">
+              {accentColors.map(c => (
+                <div 
+                  key={c} 
+                  className={`color-dot ${color === c ? 'active' : ''}`} 
+                  style={{ background: c }} 
+                  onClick={() => setColor(c)}
+                />
+              ))}
+            </div>
           </div>
         </div>
-        <button className="btn btn-primary" style={{ width: '100%', marginTop: '12px' }} onClick={submit}>
-          Add Workplace
-        </button>
+
+        {/* Sticky Footer */}
+        <div 
+          style={{ 
+            padding: '12px 24px calc(24px + env(safe-area-inset-bottom, 0px)) 24px', 
+            background: 'var(--color-surface)', 
+            borderTop: '1px solid var(--card-border)', 
+            display: 'flex', 
+            flexDirection: 'column', 
+            boxSizing: 'border-box' 
+          }}
+        >
+          <button 
+            className="btn btn-primary" 
+            style={{ 
+              width: '100%', 
+              height: '52px', 
+              borderRadius: '14px', 
+              fontSize: '15px', 
+              fontWeight: '700',
+              opacity: isAddDisabled ? 0.5 : 1,
+              cursor: isAddDisabled ? 'not-allowed' : 'pointer'
+            }} 
+            disabled={isAddDisabled}
+            onClick={submit}
+          >
+            Add Workplace
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -64,60 +157,144 @@ export function EditCompanyDialog({ open, onClose, company }) {
   const [location, setLocation] = useState('');
   const [target, setTarget] = useState('75');
   const [color, setColor] = useState('#10B981');
+  const [targetError, setTargetError] = useState('');
   const accentColors = ['#10B981', '#34D399', '#059669', '#047857', '#6EE7B7', '#1B5E20', '#2E7D32'];
 
   useEffect(() => {
     if (company) {
       setName(company.name);
       setLocation(company.location);
-      setTarget(company.targetPercentage.toString());
+      setTarget(company.targetPercentage.toFixed(0));
       setColor(company.color);
+      setTargetError('');
     }
   }, [company]);
 
   if (!open || !company) return null;
 
+  const handleTargetChange = (e) => {
+    const val = e.target.value;
+    if (val === '') {
+      setTarget('');
+      setTargetError('Target attendance is required');
+      return;
+    }
+
+    // Input: Numeric only (allow only digits)
+    if (!/^\d*$/.test(val)) {
+      return;
+    }
+
+    // Max: 3 digits
+    if (val.length > 3) {
+      return;
+    }
+
+    let formattedVal = val;
+    if (formattedVal.length > 1 && formattedVal.startsWith('0')) {
+      formattedVal = parseInt(formattedVal, 10).toString();
+    }
+
+    setTarget(formattedVal);
+
+    const num = parseInt(formattedVal, 10);
+    if (num > 100) {
+      setTargetError('Target attendance must be between 0 and 100');
+    } else {
+      setTargetError('');
+    }
+  };
+
+  const isSaveDisabled = !name.trim() || target === '' || targetError !== '';
+
   const submit = () => {
-    if (!name.trim()) return;
-    editCompany(company.id, name, location, target, color);
+    if (isSaveDisabled) return;
+    const finalTarget = parseInt(target, 10) || 0;
+    editCompany(company.id, name, location, finalTarget, color);
     onClose();
   };
 
   return (
     <div className="modal-overlay">
-      <div className="modal-content" role="dialog" aria-modal="true" aria-label="Edit Workplace Form">
-        <div className="modal-header">
-          <h3>Edit Workplace Details</h3>
-          <button className="modal-close" onClick={onClose} aria-label="Close modal">×</button>
-        </div>
-        <div className="form-group">
-          <label>Company Name *</label>
-          <input type="text" className="form-control" value={name} onChange={e => setName(e.target.value)} />
-        </div>
-        <div className="form-group">
-          <label>Location</label>
-          <input type="text" className="form-control" value={location} onChange={e => setLocation(e.target.value)} />
-        </div>
-        <div className="form-group">
-          <label>Target Attendance (%)</label>
-          <input type="number" className="form-control" value={target} onChange={e => setTarget(e.target.value)} />
-        </div>
-        <div className="form-group">
-          <label>Theme Color</label>
-          <div className="color-picker-grid">
-            {accentColors.map(c => (
-              <div 
-                key={c} 
-                className={`color-dot ${color === c ? 'active' : ''}`} 
-                style={{ background: c }} 
-                onClick={() => setColor(c)}
-              />
-            ))}
+      <div 
+        className="modal-content" 
+        role="dialog" 
+        aria-modal="true" 
+        aria-label="Edit Workplace Form"
+        style={{ display: 'flex', flexDirection: 'column', padding: 0, overflow: 'hidden' }}
+      >
+        <div style={{ flex: 1, overflowY: 'auto', padding: '30px 24px 12px 24px' }}>
+          <div className="modal-header">
+            <h3>Edit Workplace Details</h3>
+            <button className="modal-close" onClick={onClose} aria-label="Close modal">×</button>
+          </div>
+          <div className="form-group">
+            <label>Company Name *</label>
+            <input type="text" className="form-control" value={name} onChange={e => setName(e.target.value)} />
+          </div>
+          <div className="form-group">
+            <label>Location</label>
+            <input type="text" className="form-control" value={location} onChange={e => setLocation(e.target.value)} />
+          </div>
+          <div className="form-group">
+            <label>Target Attendance (%)</label>
+            <input 
+              type="text" 
+              inputMode="numeric"
+              pattern="[0-9]*"
+              className="form-control" 
+              value={target} 
+              onChange={handleTargetChange} 
+            />
+            {targetError && (
+              <div style={{ color: 'var(--color-danger)', fontSize: '12px', marginTop: '6px', fontWeight: '700' }}>
+                {targetError}
+              </div>
+            )}
+          </div>
+          <div className="form-group">
+            <label>Theme Color</label>
+            <div className="color-picker-grid">
+              {accentColors.map(c => (
+                <div 
+                  key={c} 
+                  className={`color-dot ${color === c ? 'active' : ''}`} 
+                  style={{ background: c }} 
+                  onClick={() => setColor(c)}
+                />
+              ))}
+            </div>
           </div>
         </div>
-        <button className="btn btn-primary" style={{ width: '100%', marginTop: '12px' }} onClick={submit}>
-          Save Details
-        </button>
+
+        {/* Sticky Footer always visible */}
+        <div 
+          style={{ 
+            padding: '12px 24px calc(24px + env(safe-area-inset-bottom, 0px)) 24px', 
+            background: 'var(--color-surface)', 
+            borderTop: '1px solid var(--card-border)', 
+            display: 'flex', 
+            flexDirection: 'column', 
+            boxSizing: 'border-box' 
+          }}
+        >
+          <button 
+            className="btn btn-primary" 
+            style={{ 
+              width: '100%', 
+              height: '52px', 
+              borderRadius: '14px', 
+              fontSize: '15px', 
+              fontWeight: '700',
+              opacity: isSaveDisabled ? 0.5 : 1,
+              cursor: isSaveDisabled ? 'not-allowed' : 'pointer'
+            }} 
+            disabled={isSaveDisabled}
+            onClick={submit}
+          >
+            Save Details
+          </button>
+        </div>
       </div>
     </div>
   );

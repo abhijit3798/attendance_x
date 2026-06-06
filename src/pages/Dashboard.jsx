@@ -28,12 +28,33 @@ export default function Dashboard() {
   // Calculate stats reactively
   const getCompanyStats = (companyId) => {
     const compRecs = records.filter(r => r.companyId === companyId);
-    const present = compRecs.filter(r => r.status === 'PRESENT').length;
-    const absent = compRecs.filter(r => r.status === 'ABSENT').length;
-    const compLeaves = leaves.filter(l => l.companyId === companyId && l.status === 'APPROVED').length;
-    const total = present + absent;
-    const percentage = total > 0 ? (present / total) * 100 : 100.0;
-    return { present, absent, leaves: compLeaves, total, percentage };
+    const compLeaves = leaves.filter(l => l.companyId === companyId && l.status === 'APPROVED');
+
+    let present = 0;
+    let absent = 0;
+    let holiday = 0;
+    let weekoff = 0;
+    let leave = compLeaves.length;
+
+    compRecs.forEach(r => {
+      if (r.status === 'PRESENT' || r.status === 'OVERTIME') {
+        present += 1;
+      } else if (r.status === 'ABSENT') {
+        absent += 1;
+      } else if (r.status === 'HALFDAY') {
+        present += 0.5;
+        absent += 0.5;
+      } else if (r.status === 'HOLIDAY') {
+        holiday += 1;
+      } else if (r.status === 'WEEKOFF') {
+        weekoff += 1;
+      }
+    });
+
+    const workingDays = present + absent + leave;
+    const percentage = workingDays > 0 ? (present / workingDays) * 100 : 100.0;
+
+    return { present, absent, leaves: leave, holiday, weekoff, percentage };
   };
 
   // Overall Attendance Percentage calculated across active companies
@@ -139,9 +160,18 @@ export default function Dashboard() {
                     <span className="workplace-target-new">Target: {comp.targetPercentage.toFixed(0)}%</span>
                   </div>
                   
-                  <div className="workplace-counts-row-new">
-                    <span className="workplace-count-badge-new present">Present: {stats.present}</span>
-                    <span className="workplace-count-badge-new leaves">Leaves: {stats.leaves}</span>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '8px' }}>
+                    {/* Row 1: Present | Absent | Leave */}
+                    <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                      <span className="workplace-count-badge-new present" style={{ flex: 1, minWidth: '70px', textAlign: 'center' }}>Present: {stats.present}</span>
+                      <span className="workplace-count-badge-new absent" style={{ flex: 1, minWidth: '70px', textAlign: 'center' }}>Absent: {stats.absent}</span>
+                      <span className="workplace-count-badge-new leaves" style={{ flex: 1, minWidth: '70px', textAlign: 'center' }}>Leave: {stats.leaves}</span>
+                    </div>
+                    {/* Row 2: Holiday | Week Off */}
+                    <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                      <span className="workplace-count-badge-new holiday" style={{ flex: 1, minWidth: '100px', textAlign: 'center' }}>Holiday: {stats.holiday}</span>
+                      <span className="workplace-count-badge-new weekoff" style={{ flex: 1, minWidth: '100px', textAlign: 'center' }}>Week Off: {stats.weekoff}</span>
+                    </div>
                   </div>
                 </div>
               </div>

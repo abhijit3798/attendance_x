@@ -1134,6 +1134,21 @@ body {
   color: var(--warning);
 }
 
+.workplace-count-badge-new.absent {
+  background: var(--danger-glow);
+  color: var(--danger);
+}
+
+.workplace-count-badge-new.holiday {
+  background: var(--info-glow);
+  color: var(--info);
+}
+
+.workplace-count-badge-new.weekoff {
+  background: var(--purple-glow);
+  color: var(--purple);
+}
+
 /* SECTION 5: WORKPLACE CALENDAR SCREEN */
 .workplace-calendar-container {
   display: flex;

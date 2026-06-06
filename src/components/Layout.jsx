@@ -1,6 +1,7 @@
 import React, { useContext, useState } from 'react';
 import { AppContext } from '../context/AppState';
 import { EditCompanyDialog } from './Dialogs';
+import AppLogo from './AppLogo';
 
 // Inline SVGs for lightweight design and complete offline capability
 const Icons = {
@@ -66,6 +67,16 @@ export default function Layout({ children, activeScreen, setActiveScreen }) {
   } = context;
 
   const [showEditModal, setShowEditModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+
+  const handleConfirmDelete = () => {
+    const comp = companies.find(c => c.id === activeCompanyId);
+    if (comp) {
+      deleteCompany(comp.id, comp.name);
+      setActiveCompanyId(null);
+    }
+    setShowDeleteModal(false);
+  };
 
   const toggleTheme = () => {
     if (themeMode === 'dark') {
@@ -151,17 +162,14 @@ export default function Layout({ children, activeScreen, setActiveScreen }) {
         role="navigation"
         aria-label="Sidebar Menu Directory"
       >
-        <div className="drawer-logo">
-          <span>🟢</span>
+        <div className="drawer-logo" style={{ gap: '12px' }}>
+          <AppLogo size={34} />
           <span>AttendanceX</span>
         </div>
 
         <nav className="drawer-menu">
           <button className={`drawer-item ${activeScreen === 'dashboard' ? 'active' : ''}`} onClick={() => navigateTo('dashboard')}>
             <Icons.Dashboard /> Dashboard
-          </button>
-          <button className={`drawer-item ${activeScreen === 'calendar' || activeScreen === 'quick' ? 'active' : ''}`} onClick={() => navigateTo('calendar')}>
-            <Icons.Calendar /> Attendance
           </button>
           <button className={`drawer-item ${activeScreen === 'reports' ? 'active' : ''}`} onClick={() => navigateTo('reports')}>
             <Icons.Reports /> Reports
@@ -209,13 +217,7 @@ export default function Layout({ children, activeScreen, setActiveScreen }) {
                 </button>
                 <button 
                   className="wp-calendar-action-btn" 
-                  onClick={() => {
-                    const comp = companies.find(c => c.id === activeCompanyId);
-                    if (comp && window.confirm(`Are you sure you want to delete ${comp.name}?`)) {
-                      deleteCompany(comp.id, comp.name);
-                      setActiveCompanyId(null);
-                    }
-                  }} 
+                  onClick={() => setShowDeleteModal(true)} 
                   aria-label="Delete workplace"
                   style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--color-danger)', padding: '8px', borderRadius: '50%', display: 'flex', alignItems: 'center' }}
                 >
@@ -223,12 +225,6 @@ export default function Layout({ children, activeScreen, setActiveScreen }) {
                 </button>
               </div>
             </div>
-            
-            <EditCompanyDialog
-              open={showEditModal}
-              onClose={() => setShowEditModal(false)}
-              company={companies.find(c => c.id === activeCompanyId)}
-            />
           </header>
         ) : (
           <header className="top-bar">
@@ -284,6 +280,42 @@ export default function Layout({ children, activeScreen, setActiveScreen }) {
 
         </nav>
       </div>
+
+      {showDeleteModal && (
+        <div className="modal-overlay" onClick={() => setShowDeleteModal(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-label="Delete Workplace Confirmation" style={{ maxWidth: '360px', padding: '24px', borderRadius: '20px' }}>
+            <div className="modal-header" style={{ marginBottom: '16px' }}>
+              <h3 style={{ fontSize: '18px', fontWeight: '800', margin: 0 }}>Delete Workplace</h3>
+              <button className="modal-close" onClick={() => setShowDeleteModal(false)} aria-label="Close modal">×</button>
+            </div>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '13px', lineHeight: '1.5', marginBottom: '24px', textAlign: 'left' }}>
+              This will permanently remove workplace data and attendance records.
+            </p>
+            <div style={{ display: 'flex', gap: '12px' }}>
+              <button 
+                className="btn btn-secondary" 
+                style={{ flex: 1, padding: '12px', fontSize: '14px', fontWeight: '700' }} 
+                onClick={() => setShowDeleteModal(false)}
+              >
+                Cancel
+              </button>
+              <button 
+                className="btn" 
+                style={{ flex: 1, padding: '12px', background: 'var(--color-danger)', color: 'white', border: 'none', borderRadius: '12px', fontSize: '14px', fontWeight: '700', cursor: 'pointer' }} 
+                onClick={handleConfirmDelete}
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <EditCompanyDialog
+        open={showEditModal}
+        onClose={() => setShowEditModal(false)}
+        company={companies.find(c => c.id === activeCompanyId)}
+      />
     </div>
   );
 }
