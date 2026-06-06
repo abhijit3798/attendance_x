@@ -119,9 +119,13 @@ export default function Calendar() {
   };
 
   // Extract date string from record timestamp
-  const getRecordDateString = (timestamp) => {
-    if (!timestamp) return '';
-    const d = new Date(timestamp);
+  const getRecordDateString = (r) => {
+    if (!r) return '';
+    if (typeof r === 'object') {
+      if (r.date) return r.date;
+      return getRecordDateString(r.timestamp);
+    }
+    const d = new Date(r);
     if (isNaN(d.getTime())) return '';
     const y = d.getFullYear();
     const mm = (d.getMonth() + 1).toString().padStart(2, '0');
@@ -136,7 +140,7 @@ export default function Calendar() {
     if (leave) return { status: 'LEAVE', notes: leave.reason };
 
     // 2. Check records
-    const record = records.find(r => r.companyId === selectedCompanyId && getRecordDateString(r.timestamp) === dateStr);
+    const record = records.find(r => r.companyId === selectedCompanyId && getRecordDateString(r) === dateStr);
     if (record) return { status: record.status, notes: record.notes };
 
     return null;
@@ -149,7 +153,7 @@ export default function Calendar() {
     if (leave) return 'leave';
 
     // 2. Check records
-    const record = records.find(r => r.companyId === selectedCompanyId && getRecordDateString(r.timestamp) === dateStr);
+    const record = records.find(r => r.companyId === selectedCompanyId && getRecordDateString(r) === dateStr);
     if (record) {
       if (record.status === 'PRESENT' || record.status === 'OVERTIME') return 'present';
       if (record.status === 'ABSENT') return 'absent';
@@ -169,7 +173,7 @@ export default function Calendar() {
     // Filter leaves for this company in active month
     const compLeaves = leaves.filter(l => l.companyId === selectedCompanyId && l.date.startsWith(monthPrefix) && l.status === 'APPROVED');
     // Filter records for this company in active month
-    const compRecs = records.filter(r => r.companyId === selectedCompanyId && getRecordDateString(r.timestamp).startsWith(monthPrefix));
+    const compRecs = records.filter(r => r.companyId === selectedCompanyId && getRecordDateString(r).startsWith(monthPrefix));
 
     let present = 0;
     let absent = 0;

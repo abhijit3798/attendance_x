@@ -29,9 +29,13 @@ export default function Reports() {
   ];
 
   // Helper date conversions
-  const getRecordDateString = (timestamp) => {
-    if (!timestamp) return '';
-    const d = new Date(timestamp);
+  const getRecordDateString = (r) => {
+    if (!r) return '';
+    if (typeof r === 'object') {
+      if (r.date) return r.date;
+      return getRecordDateString(r.timestamp);
+    }
+    const d = new Date(r);
     if (isNaN(d.getTime())) return '';
     const y = d.getFullYear();
     const mm = (d.getMonth() + 1).toString().padStart(2, '0');
@@ -72,7 +76,7 @@ export default function Reports() {
 
   // Workplace stats calculated specifically inside the selected month/year
   const getCompanyStatsForSelectedMonth = (companyId, monthPrefix) => {
-    const compRecs = (records || []).filter(r => r && r.companyId === companyId && r.timestamp && getRecordDateString(r.timestamp).startsWith(monthPrefix));
+    const compRecs = (records || []).filter(r => r && r.companyId === companyId && getRecordDateString(r).startsWith(monthPrefix));
     const compLeaves = (leaves || []).filter(l => l && l.companyId === companyId && l.date && l.date.startsWith(monthPrefix) && l.status === 'APPROVED');
 
     let present = 0;

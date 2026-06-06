@@ -2,6 +2,20 @@ import React, { createContext, useState, useEffect } from 'react';
 
 export const AppContext = createContext();
 
+const getRecordDateString = (r) => {
+  if (!r) return '';
+  if (typeof r === 'object') {
+    if (r.date) return r.date;
+    return getRecordDateString(r.timestamp);
+  }
+  const d = new Date(r);
+  if (isNaN(d.getTime())) return '';
+  const y = d.getFullYear();
+  const mm = (d.getMonth() + 1).toString().padStart(2, '0');
+  const dd = d.getDate().toString().padStart(2, '0');
+  return `${y}-${mm}-${dd}`;
+};
+
 export const AppProvider = ({ children }) => {
   // 1. Personal User Profile
   const [userName, setUserName] = useState('Abhijit');
@@ -109,7 +123,10 @@ export const AppProvider = ({ children }) => {
   const [undoStack, setUndoStack] = useState([]);
 
   // 5. Leave Registry database
-  const [leaves, setLeaves] = useState([]);
+  const [leaves, setLeaves] = useState(() => {
+    const local = localStorage.getItem('ax_leaves');
+    return local ? JSON.parse(local) : [];
+  });
 
   // 6. Notes Database
   const notes = [];
@@ -147,6 +164,39 @@ export const AppProvider = ({ children }) => {
   useEffect(() => {
     localStorage.setItem('ax_calendar_logs', JSON.stringify(calendarLogs));
   }, [calendarLogs]);
+
+  useEffect(() => {
+    localStorage.setItem('ax_leaves', JSON.stringify(leaves));
+  }, [leaves]);
+
+  useEffect(() => {
+    const newLogs = {};
+    
+    // Sort records ascending so newer ones overwrite older ones on same day
+    const sortedRecords = [...records].sort((a, b) => a.timestamp - b.timestamp);
+    sortedRecords.forEach(r => {
+      const dateStr = getRecordDateString(r);
+      if (dateStr) {
+        newLogs[dateStr] = {
+          status: r.status,
+          shift: r.shift || 'GENERAL',
+          notes: r.notes || ''
+        };
+      }
+    });
+
+    leaves.forEach(l => {
+      if (l.status === 'APPROVED' && l.date) {
+        newLogs[l.date] = {
+          status: 'LEAVE',
+          shift: 'GENERAL',
+          notes: l.reason || 'Leave absence'
+        };
+      }
+    });
+
+    setCalendarLogs(newLogs);
+  }, [records, leaves]);
 
 
 

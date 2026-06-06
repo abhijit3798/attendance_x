@@ -5,8 +5,6 @@ export default function Settings() {
   const { 
     userName, setUserName, triggerBanner,
     themeMode, setThemeMode,
-    notificationsEnabled, setNotificationsEnabled,
-    reminderTime, setReminderTime,
     appLanguage, setAppLanguage,
     defaultCalendarView, setDefaultCalendarView,
     appLockEnabled, setAppLockEnabled,
@@ -107,47 +105,7 @@ export default function Settings() {
         </div>
       </div>
 
-      {/* 3. NOTIFICATIONS SECTION */}
-      <div className="action-card" style={{ marginTop: '20px' }}>
-        <h3 className="settings-section-divider">🔔 Alerts & Reminders</h3>
-        <p style={{ color: 'var(--text-secondary)', fontSize: '13px', margin: '4px 0 16px 0' }}>Manage notification frequencies.</p>
 
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-          <div>
-            <strong>Enable Reminders</strong>
-            <p style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '2px' }}>Daily alarm to clock attendance checks.</p>
-          </div>
-          <button
-            className="btn"
-            style={{
-              background: notificationsEnabled ? 'var(--color-primary-container)' : 'var(--color-outline)',
-              color: notificationsEnabled ? 'var(--color-primary)' : 'var(--text-primary)',
-              padding: '6px 14px',
-              borderRadius: '12px',
-              fontSize: '12px',
-              fontWeight: '700'
-            }}
-            onClick={() => {
-              setNotificationsEnabled(!notificationsEnabled);
-              triggerBanner(notificationsEnabled ? 'Reminders Disabled' : 'Reminders Enabled');
-            }}
-          >
-            {notificationsEnabled ? 'ON' : 'OFF'}
-          </button>
-        </div>
-
-        {notificationsEnabled && (
-          <div className="form-group" style={{ animation: 'slideUp 0.25s ease-out' }}>
-            <label>Reminder Time</label>
-            <input 
-              type="time" 
-              className="form-control" 
-              value={reminderTime} 
-              onChange={e => setReminderTime(e.target.value)} 
-            />
-          </div>
-        )}
-      </div>
 
       {/* 4. SECURITY & APP LOCK */}
       <div className="action-card" style={{ marginTop: '20px' }}>

@@ -94,8 +94,14 @@ export default function WorkplaceCalendar({ companyId, onBack }) {
     return `${y}-${mm}-${dd}`;
   };
 
-  const getRecordDateString = (timestamp) => {
-    const d = new Date(timestamp);
+  const getRecordDateString = (r) => {
+    if (!r) return '';
+    if (typeof r === 'object') {
+      if (r.date) return r.date;
+      return getRecordDateString(r.timestamp);
+    }
+    const d = new Date(r);
+    if (isNaN(d.getTime())) return '';
     const y = d.getFullYear();
     const mm = (d.getMonth() + 1).toString().padStart(2, '0');
     const dd = d.getDate().toString().padStart(2, '0');
@@ -109,7 +115,7 @@ export default function WorkplaceCalendar({ companyId, onBack }) {
     if (leave) return 'leave';
 
     // 2. Check records
-    const record = records.find(r => r.companyId === companyId && getRecordDateString(r.timestamp) === dateStr);
+    const record = records.find(r => r.companyId === companyId && getRecordDateString(r) === dateStr);
     if (record) {
       if (record.status === 'PRESENT' || record.status === 'OVERTIME') return 'present';
       if (record.status === 'ABSENT') return 'absent';
@@ -124,9 +130,13 @@ export default function WorkplaceCalendar({ companyId, onBack }) {
   const handleSaveStatus = (status) => {
     const targetDateStr = selectedDateStr;
     const targetTimestamp = new Date(targetDateStr + 'T12:00:00').getTime();
+    const parts = targetDateStr.split('-');
+    const targetYear = parseInt(parts[0], 10);
+    const targetMonth = parseInt(parts[1], 10);
+    const targetDay = parseInt(parts[2], 10);
 
     // 1. Remove existing records/leaves for this company on this date
-    const filteredRecords = records.filter(r => !(r.companyId === companyId && getRecordDateString(r.timestamp) === targetDateStr));
+    const filteredRecords = records.filter(r => !(r.companyId === companyId && getRecordDateString(r) === targetDateStr));
     const filteredLeaves = leaves.filter(l => !(l.companyId === companyId && l.date === targetDateStr));
 
     if (status === 'PRESENT' || status === 'ABSENT' || status === 'HALFDAY' || status === 'HOLIDAY' || status === 'WEEKOFF') {
@@ -135,7 +145,11 @@ export default function WorkplaceCalendar({ companyId, onBack }) {
         companyId,
         status,
         notes: 'Logged from Workplace Calendar',
-        timestamp: targetTimestamp
+        timestamp: targetTimestamp,
+        date: targetDateStr,
+        day: targetDay,
+        month: targetMonth,
+        year: targetYear
       };
       setRecords([newRec, ...filteredRecords]);
       setLeaves(filteredLeaves);
@@ -146,6 +160,9 @@ export default function WorkplaceCalendar({ companyId, onBack }) {
         id: Date.now(),
         companyId,
         date: targetDateStr,
+        day: targetDay,
+        month: targetMonth,
+        year: targetYear,
         reason: 'Leave absence',
         status: 'APPROVED'
       };
@@ -166,7 +183,7 @@ export default function WorkplaceCalendar({ companyId, onBack }) {
     const monthPrefix = `${year}-${(month + 1).toString().padStart(2, '0')}`;
     
     // Filter records for this company in active month
-    const compRecs = records.filter(r => r.companyId === companyId && getRecordDateString(r.timestamp).startsWith(monthPrefix));
+    const compRecs = records.filter(r => r.companyId === companyId && getRecordDateString(r).startsWith(monthPrefix));
     // Filter leaves for this company in active month
     const compLeaves = leaves.filter(l => l.companyId === companyId && l.date.startsWith(monthPrefix) && l.status === 'APPROVED');
 
